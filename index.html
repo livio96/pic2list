@@ -489,6 +489,17 @@
       padding: 6px 10px; font-size: 12px; cursor: pointer;
     }
     .modal-field .aspect-combo .aspect-option:hover { background: #f0f3ff; }
+    .modal-field .aspect-combo .aspect-option.selected { background: #e8ecff; font-weight: 600; }
+    .modal-field .aspect-combo .aspect-option.selected::after { content: ' ✓'; color: #4f6ef7; }
+    .modal-field .aspect-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .modal-field .aspect-tag {
+      display: inline-flex; align-items: center; gap: 3px; background: #e8ecff; color: #3b4cca;
+      font-size: 11px; padding: 2px 8px; border-radius: 12px; white-space: nowrap;
+    }
+    .modal-field .aspect-tag .tag-x {
+      cursor: pointer; font-size: 13px; font-weight: 700; color: #8b8fa3; line-height: 1;
+    }
+    .modal-field .aspect-tag .tag-x:hover { color: #ef4444; }
     .modal-field label .req { color: #ef4444; font-size: 10px; margin-left: 4px; }
     .aspects-section-title {
       font-size: 11px; font-weight: 700; color: #4f6ef7; text-transform: uppercase;
@@ -2575,16 +2586,17 @@ HTML:
           return;
         }
 
-        // Sort: required first, then recommended, alphabetical within
+        // Sort: required first, then recommended, then optional, alphabetical within
+        const usagePriority = { RECOMMENDED: 1, OPTIONAL: 2 };
         const aspects = data.aspects.sort((a, b) => {
           if (a.required !== b.required) return a.required ? -1 : 1;
+          const ua = usagePriority[a.usage] || 2, ub = usagePriority[b.usage] || 2;
+          if (ua !== ub) return ua - ub;
           return a.name.localeCompare(b.name);
         });
 
-        // Only show required + top recommended (limit to 20 to avoid clutter)
-        const requiredAspects = aspects.filter(a => a.required);
-        const recommendedAspects = aspects.filter(a => !a.required).slice(0, Math.max(0, 20 - requiredAspects.length));
-        const shownAspects = [...requiredAspects, ...recommendedAspects];
+        // Show all aspects from eBay — required first, then recommended, then optional
+        const shownAspects = aspects;
         currentAspects = shownAspects;
 
         // Saved values from previous edits
@@ -2602,8 +2614,26 @@ HTML:
           const reqBadge = asp.required ? '<span class="req">*</span>' : '';
           const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-          if (asp.values && asp.values.length > 0) {
-            // Combo: input with dropdown suggestions
+          if (asp.values && asp.values.length > 0 && asp.multi) {
+            // Multi-select: tag-based input with checkable dropdown
+            const savedArr = Array.isArray(savedVal) ? savedVal : (savedVal ? savedVal.split(',').map(s => s.trim()).filter(Boolean) : []);
+            const optionsHtml = asp.values.map(v => {
+              const sel = savedArr.includes(v) ? ' selected' : '';
+              return `<div class="aspect-option${sel}" data-val="${escapeHtml(v)}">${escapeHtml(v)}</div>`;
+            }).join('');
+            const tagsHtml = savedArr.map(v => `<span class="aspect-tag" data-val="${escapeHtml(v)}">${escapeHtml(v)}<span class="tag-x">&times;</span></span>`).join('');
+            html += `
+              <div class="modal-field" data-multi="true">
+                <label>${escapeHtml(asp.name)}${reqBadge}</label>
+                <div class="aspect-combo">
+                  <input type="text" id="${fieldId}" value="" placeholder="${asp.required ? 'Select...' : 'Select...'}" autocomplete="off" data-aspect="${escapeHtml(asp.name)}" data-multi="true">
+                  <span class="aspect-arrow">&#9662;</span>
+                  <div class="aspect-list" id="${fieldId}_list">${optionsHtml}</div>
+                </div>
+                <div class="aspect-tags" id="${fieldId}_tags">${tagsHtml}</div>
+              </div>`;
+          } else if (asp.values && asp.values.length > 0) {
+            // Single-select: input with dropdown suggestions
             const optionsHtml = asp.values.map(v =>
               `<div class="aspect-option" data-val="${escapeHtml(v)}">${escapeHtml(v)}</div>`
             ).join('');
@@ -2611,7 +2641,7 @@ HTML:
               <div class="modal-field">
                 <label>${escapeHtml(asp.name)}${reqBadge}</label>
                 <div class="aspect-combo">
-                  <input type="text" id="${fieldId}" value="${escapeHtml(savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" autocomplete="off" data-aspect="${escapeHtml(asp.name)}">
+                  <input type="text" id="${fieldId}" value="${escapeHtml(Array.isArray(savedVal) ? savedVal[0] || '' : savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" autocomplete="off" data-aspect="${escapeHtml(asp.name)}">
                   <span class="aspect-arrow">&#9662;</span>
                   <div class="aspect-list" id="${fieldId}_list">${optionsHtml}</div>
                 </div>
@@ -2620,7 +2650,7 @@ HTML:
             html += `
               <div class="modal-field">
                 <label>${escapeHtml(asp.name)}${reqBadge}</label>
-                <input type="text" id="${fieldId}" value="${escapeHtml(savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" data-aspect="${escapeHtml(asp.name)}">
+                <input type="text" id="${fieldId}" value="${escapeHtml(Array.isArray(savedVal) ? savedVal[0] || '' : savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" data-aspect="${escapeHtml(asp.name)}">
               </div>`;
           }
         }
@@ -2632,6 +2662,7 @@ HTML:
           const input = combo.querySelector('input');
           const list = combo.querySelector('.aspect-list');
           const allOptions = list.querySelectorAll('.aspect-option');
+          const isMulti = input.dataset.multi === 'true';
 
           function filterOptions() {
             const q = input.value.toLowerCase();
@@ -2646,16 +2677,75 @@ HTML:
 
           input.addEventListener('focus', () => { filterOptions(); });
           input.addEventListener('input', () => { filterOptions(); });
-          allOptions.forEach(opt => {
-            opt.addEventListener('mousedown', (e) => {
-              e.preventDefault();
-              input.value = opt.dataset.val;
-              list.classList.remove('open');
+
+          if (isMulti) {
+            const tagsContainer = combo.parentElement.querySelector('.aspect-tags');
+
+            function getSelectedValues() {
+              return Array.from(tagsContainer.querySelectorAll('.aspect-tag')).map(t => t.dataset.val);
+            }
+
+            function renderTags() {
+              const vals = getSelectedValues();
+              // Sync option highlights
+              allOptions.forEach(opt => opt.classList.toggle('selected', vals.includes(opt.dataset.val)));
+            }
+
+            function addTag(val) {
+              if (getSelectedValues().includes(val)) return;
+              const tag = document.createElement('span');
+              tag.className = 'aspect-tag';
+              tag.dataset.val = val;
+              tag.innerHTML = `${escapeHtml(val)}<span class="tag-x">&times;</span>`;
+              tag.querySelector('.tag-x').addEventListener('click', () => {
+                tag.remove();
+                renderTags();
+              });
+              tagsContainer.appendChild(tag);
+              renderTags();
+            }
+
+            function removeTag(val) {
+              const tag = tagsContainer.querySelector(`.aspect-tag[data-val="${CSS.escape(val)}"]`);
+              if (tag) tag.remove();
+              renderTags();
+            }
+
+            // Wire existing tags' X buttons
+            tagsContainer.querySelectorAll('.tag-x').forEach(x => {
+              x.addEventListener('click', () => { x.parentElement.remove(); renderTags(); });
             });
-          });
-          input.addEventListener('blur', () => {
-            setTimeout(() => list.classList.remove('open'), 150);
-          });
+
+            allOptions.forEach(opt => {
+              opt.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                if (opt.classList.contains('selected')) {
+                  removeTag(opt.dataset.val);
+                } else {
+                  addTag(opt.dataset.val);
+                }
+                input.value = '';
+                filterOptions();
+              });
+            });
+
+            input.addEventListener('blur', () => {
+              setTimeout(() => { list.classList.remove('open'); input.value = ''; }, 150);
+            });
+
+          } else {
+            // Single-select behavior
+            allOptions.forEach(opt => {
+              opt.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                input.value = opt.dataset.val;
+                list.classList.remove('open');
+              });
+            });
+            input.addEventListener('blur', () => {
+              setTimeout(() => list.classList.remove('open'), 150);
+            });
+          }
         });
 
         // Wire up auto-fill button
@@ -2678,9 +2768,18 @@ HTML:
       const result = {};
       for (const asp of currentAspects) {
         const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const el = document.getElementById(fieldId);
-        if (el && el.value.trim()) {
-          result[asp.name] = el.value.trim();
+        if (asp.multi) {
+          // Multi-select: collect from tags
+          const tagsContainer = document.getElementById(`${fieldId}_tags`);
+          if (tagsContainer) {
+            const vals = Array.from(tagsContainer.querySelectorAll('.aspect-tag')).map(t => t.dataset.val);
+            if (vals.length > 0) result[asp.name] = vals;
+          }
+        } else {
+          const el = document.getElementById(fieldId);
+          if (el && el.value.trim()) {
+            result[asp.name] = el.value.trim();
+          }
         }
       }
       return result;
@@ -2703,10 +2802,17 @@ HTML:
       const fieldsToFill = currentAspects.map(asp => {
         const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
         const el = document.getElementById(fieldId);
-        const currentVal = el ? el.value.trim() : '';
+        let currentVal;
+        if (asp.multi) {
+          const tagsContainer = document.getElementById(`${fieldId}_tags`);
+          currentVal = tagsContainer ? Array.from(tagsContainer.querySelectorAll('.aspect-tag')).map(t => t.dataset.val) : [];
+        } else {
+          currentVal = el ? el.value.trim() : '';
+        }
         return {
           name: asp.name,
           required: asp.required,
+          multi: asp.multi || false,
           currentValue: currentVal,
           allowedValues: asp.values && asp.values.length > 0 ? asp.values : null,
         };
@@ -2722,11 +2828,13 @@ CRITICAL RULES:
 3. For required fields, ALWAYS provide a value. Use "Does Not Apply" only as a last resort for free-text fields.
 4. For fields with allowedValues where you're unsure, pick the closest matching option from the list.
 5. If a field already has a "currentValue", keep it unless you have a clearly better match.
+6. If a field has "multi": true, return an ARRAY of matching values from allowedValues (e.g. ["iOS", "Android"]). Pick ALL values that apply to this product.
+7. If a field has "multi": false, return a single string value.
 
 Fields:
 ${JSON.stringify(fieldsToFill, null, 2)}
 
-Respond with ONLY a valid JSON object mapping field names to values. No explanation, no markdown, no code blocks. Just the JSON object.`;
+Respond with ONLY a valid JSON object mapping field names to values (strings for single-select, arrays for multi-select). No explanation, no markdown, no code blocks. Just the JSON object.`;
 
       try {
         const resp = await apiFetch('/api/openai/chat', {
@@ -2751,36 +2859,68 @@ Respond with ONLY a valid JSON object mapping field names to values. No explanat
         // Fill in the fields with validation against allowed values
         for (const [name, value] of Object.entries(values)) {
           const fieldId = `aspect_${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-          const el = document.getElementById(fieldId);
-          if (!el || !value) continue;
-
-          // Find the aspect definition to check allowed values
           const asp = currentAspects.find(a => a.name === name);
-          let finalValue = String(value);
+          if (!asp || !value) continue;
 
-          // If this field has allowed values, snap to the closest match
-          if (asp && asp.values && asp.values.length > 0) {
-            const exact = asp.values.find(v => v.toLowerCase() === finalValue.toLowerCase());
-            if (exact) {
-              finalValue = exact; // exact match (case-corrected)
-            } else {
-              // Find closest match by substring/includes
-              const partial = asp.values.find(v =>
-                v.toLowerCase().includes(finalValue.toLowerCase()) ||
-                finalValue.toLowerCase().includes(v.toLowerCase())
-              );
-              if (partial) {
-                finalValue = partial;
+          if (asp.multi) {
+            // Multi-select: add validated tags
+            const tagsContainer = document.getElementById(`${fieldId}_tags`);
+            const listEl = document.getElementById(`${fieldId}_list`);
+            if (!tagsContainer) continue;
+            const existingVals = Array.from(tagsContainer.querySelectorAll('.aspect-tag')).map(t => t.dataset.val);
+            if (existingVals.length > 0) continue; // skip if already has values
+
+            const rawArr = Array.isArray(value) ? value : [value];
+            for (const rawVal of rawArr) {
+              const str = String(rawVal);
+              let validated = null;
+              if (asp.values && asp.values.length > 0) {
+                validated = asp.values.find(v => v.toLowerCase() === str.toLowerCase())
+                  || asp.values.find(v => v.toLowerCase().includes(str.toLowerCase()) || str.toLowerCase().includes(v.toLowerCase()));
               } else {
-                // Last resort: pick first allowed value rather than an invalid one
-                finalValue = asp.values[0];
+                validated = str;
+              }
+              if (!validated) continue;
+              if (existingVals.includes(validated)) continue;
+              existingVals.push(validated);
+              const tag = document.createElement('span');
+              tag.className = 'aspect-tag';
+              tag.dataset.val = validated;
+              tag.innerHTML = `${escapeHtml(validated)}<span class="tag-x">&times;</span>`;
+              tag.querySelector('.tag-x').addEventListener('click', () => {
+                tag.remove();
+                // Sync option highlights
+                if (listEl) listEl.querySelectorAll('.aspect-option').forEach(opt =>
+                  opt.classList.toggle('selected', Array.from(tagsContainer.querySelectorAll('.aspect-tag')).some(t => t.dataset.val === opt.dataset.val)));
+              });
+              tagsContainer.appendChild(tag);
+            }
+            // Sync option highlights
+            if (listEl) listEl.querySelectorAll('.aspect-option').forEach(opt =>
+              opt.classList.toggle('selected', existingVals.includes(opt.dataset.val)));
+
+          } else {
+            // Single-select: set input value
+            const el = document.getElementById(fieldId);
+            if (!el) continue;
+            let finalValue = String(value);
+
+            if (asp.values && asp.values.length > 0) {
+              const exact = asp.values.find(v => v.toLowerCase() === finalValue.toLowerCase());
+              if (exact) {
+                finalValue = exact;
+              } else {
+                const partial = asp.values.find(v =>
+                  v.toLowerCase().includes(finalValue.toLowerCase()) ||
+                  finalValue.toLowerCase().includes(v.toLowerCase())
+                );
+                finalValue = partial || asp.values[0];
               }
             }
-          }
 
-          // Fill if empty, or overwrite with validated value
-          if (!el.value.trim()) {
-            el.value = finalValue;
+            if (!el.value.trim()) {
+              el.value = finalValue;
+            }
           }
         }
 
@@ -2800,13 +2940,14 @@ Respond with ONLY a valid JSON object mapping field names to values. No explanat
       const aspectData = await aspectResp.json();
       if (!aspectData.success || !aspectData.aspects?.length) return;
 
+      const usagePriority = { RECOMMENDED: 1, OPTIONAL: 2 };
       const aspects = aspectData.aspects.sort((a, b) => {
         if (a.required !== b.required) return a.required ? -1 : 1;
+        const ua = usagePriority[a.usage] || 2, ub = usagePriority[b.usage] || 2;
+        if (ua !== ub) return ua - ub;
         return a.name.localeCompare(b.name);
       });
-      const requiredAspects = aspects.filter(a => a.required);
-      const recommendedAspects = aspects.filter(a => !a.required).slice(0, Math.max(0, 20 - requiredAspects.length));
-      const shownAspects = [...requiredAspects, ...recommendedAspects];
+      const shownAspects = aspects;
 
       // 2. Build context for AI
       const productInfo = [
@@ -2823,7 +2964,8 @@ Respond with ONLY a valid JSON object mapping field names to values. No explanat
       const fieldsToFill = shownAspects.map(asp => ({
         name: asp.name,
         required: asp.required,
-        currentValue: existing[asp.name] || '',
+        multi: asp.multi || false,
+        currentValue: existing[asp.name] || (asp.multi ? [] : ''),
         allowedValues: asp.values && asp.values.length > 0 ? asp.values : null,
       }));
 
@@ -2837,11 +2979,13 @@ CRITICAL RULES:
 3. For required fields, ALWAYS provide a value. Use "Does Not Apply" only as a last resort for free-text fields.
 4. For fields with allowedValues where you're unsure, pick the closest matching option from the list.
 5. If a field already has a "currentValue", keep it unless you have a clearly better match.
+6. If a field has "multi": true, return an ARRAY of matching values from allowedValues (e.g. ["iOS", "Android"]). Pick ALL values that apply to this product.
+7. If a field has "multi": false, return a single string value.
 
 Fields:
 ${JSON.stringify(fieldsToFill, null, 2)}
 
-Respond with ONLY a valid JSON object mapping field names to values. No explanation, no markdown, no code blocks. Just the JSON object.`;
+Respond with ONLY a valid JSON object mapping field names to values (strings for single-select, arrays for multi-select). No explanation, no markdown, no code blocks. Just the JSON object.`;
 
       // 3. Call OpenAI
       const resp = await apiFetch('/api/openai/chat', {
@@ -2865,22 +3009,44 @@ Respond with ONLY a valid JSON object mapping field names to values. No explanat
       // 4. Validate against allowed values and store
       const result = {};
       for (const asp of shownAspects) {
-        let val = values[asp.name] ? String(values[asp.name]) : (existing[asp.name] || '');
-        if (!val) continue;
+        if (asp.multi) {
+          // Multi-select: validate each value in the array
+          const rawArr = Array.isArray(values[asp.name]) ? values[asp.name]
+            : (values[asp.name] ? [values[asp.name]] : []);
+          const existArr = Array.isArray(existing[asp.name]) ? existing[asp.name] : [];
+          const source = rawArr.length > 0 ? rawArr : existArr;
+          if (source.length === 0) continue;
 
-        if (asp.values && asp.values.length > 0) {
-          const exact = asp.values.find(v => v.toLowerCase() === val.toLowerCase());
-          if (exact) {
-            val = exact;
-          } else {
-            const partial = asp.values.find(v =>
-              v.toLowerCase().includes(val.toLowerCase()) ||
-              val.toLowerCase().includes(v.toLowerCase())
-            );
-            val = partial || asp.values[0];
+          const validated = [];
+          for (const rawVal of source) {
+            const str = String(rawVal);
+            if (asp.values && asp.values.length > 0) {
+              const match = asp.values.find(v => v.toLowerCase() === str.toLowerCase())
+                || asp.values.find(v => v.toLowerCase().includes(str.toLowerCase()) || str.toLowerCase().includes(v.toLowerCase()));
+              if (match && !validated.includes(match)) validated.push(match);
+            } else {
+              if (!validated.includes(str)) validated.push(str);
+            }
           }
+          if (validated.length > 0) result[asp.name] = validated;
+        } else {
+          let val = values[asp.name] ? String(values[asp.name]) : (existing[asp.name] || '');
+          if (!val) continue;
+
+          if (asp.values && asp.values.length > 0) {
+            const exact = asp.values.find(v => v.toLowerCase() === val.toLowerCase());
+            if (exact) {
+              val = exact;
+            } else {
+              const partial = asp.values.find(v =>
+                v.toLowerCase().includes(val.toLowerCase()) ||
+                val.toLowerCase().includes(v.toLowerCase())
+              );
+              val = partial || asp.values[0];
+            }
+          }
+          result[asp.name] = val;
         }
-        result[asp.name] = val;
       }
 
       meta._itemAspects = result;

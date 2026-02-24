@@ -289,13 +289,17 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
   let itemSpecificsXml = '';
   if (itemSpecifics && Object.keys(itemSpecifics).length > 0) {
     const pairs = Object.entries(itemSpecifics)
-      .filter(([, v]) => v && String(v).trim())
-      .map(([name, value]) => [
-        '      <NameValueList>',
-        `        <Name>${escapeXml(name)}</Name>`,
-        `        <Value>${escapeXml(String(value))}</Value>`,
-        '      </NameValueList>',
-      ].join('\n'));
+      .filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : String(v).trim()))
+      .map(([name, value]) => {
+        const vals = Array.isArray(value) ? value : [value];
+        const valueXml = vals.map(v => `        <Value>${escapeXml(String(v))}</Value>`).join('\n');
+        return [
+          '      <NameValueList>',
+          `        <Name>${escapeXml(name)}</Name>`,
+          valueXml,
+          '      </NameValueList>',
+        ].join('\n');
+      });
     if (pairs.length > 0) {
       itemSpecificsXml = `    <ItemSpecifics>\n${pairs.join('\n')}\n    </ItemSpecifics>`;
     }
@@ -615,7 +619,9 @@ app.get('/api/ebay/item-aspects', async (req, res) => {
     const aspects = (data.aspects || []).map(a => ({
       name: a.localizedAspectName,
       required: a.aspectConstraint?.aspectRequired || false,
+      usage: a.aspectConstraint?.aspectUsage || 'OPTIONAL',
       mode: a.aspectConstraint?.aspectMode || 'FREE_TEXT',
+      multi: a.aspectConstraint?.itemToAspectCardinality === 'MULTI',
       values: (a.aspectValues || []).map(v => v.localizedValue),
     }));
 

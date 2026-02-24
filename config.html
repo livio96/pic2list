@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pic2list - Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      padding: 18px 32px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 14px;
+    }
+    header h1 { font-size: 24px; font-weight: 800; color: #4f6ef7; letter-spacing: -0.5px; }
+    header span { font-size: 13px; color: #8b8fa3; margin-top: 2px; }
+    header nav { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+    header nav a { font-size: 13px; color: #4f6ef7; text-decoration: none; font-weight: 600; }
+    header nav a:hover { text-decoration: underline; }
+    .btn-sm {
+      padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; color: #555b6e; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-sm:hover { background: #f4f6f9; }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 32px; }
+    .config-card {
+      background: #fff; border-radius: 16px; padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    }
+    .config-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .config-card .desc { font-size: 13px; color: #8b8fa3; margin-bottom: 28px; }
+
+    .config-section { margin-bottom: 28px; }
+    .config-section h3 {
+      font-size: 13px; font-weight: 700; color: #4f6ef7; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #eef1ff;
+    }
+
+    .config-field { margin-bottom: 16px; }
+    .config-field label {
+      display: block; font-size: 12px; font-weight: 700; color: #555b6e; margin-bottom: 6px;
+    }
+    .config-field .status {
+      font-size: 11px; font-weight: 400; margin-left: 8px; padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .status-set { background: #ecfdf5; color: #059669; }
+    .status-unset { background: #fef2f2; color: #dc2626; }
+    .config-field input, .config-field textarea {
+      width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px;
+      font-size: 13px; outline: none; transition: border-color 0.15s; color: #1a1a2e;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .config-field input:focus, .config-field textarea:focus { border-color: #4f6ef7; }
+    .config-field textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+    .config-field .hint { font-size: 11px; color: #8b8fa3; margin-top: 4px; }
+
+    .btn-primary {
+      padding: 12px 32px; border: none; border-radius: 10px;
+      background: #4f6ef7; color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #3b5de7; }
+    .btn-primary:disabled { background: #a0b0f0; cursor: not-allowed; }
+
+    .save-row { display: flex; align-items: center; gap: 14px; margin-top: 24px; }
+    .save-msg { font-size: 13px; color: #059669; display: none; }
+    .error-msg {
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+      color: #dc2626; font-size: 13px; padding: 10px 14px; margin-bottom: 16px; display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>pic2list</h1>
+    <span>Settings</span>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/config.html">Settings</a>
+      <a href="/users.html" id="navUsers" style="display:none;">Manage Users</a>
+      <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
+      <button class="btn-sm" id="logoutBtn">Log Out</button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="config-card">
+      <h2>Settings</h2>
+      <p class="desc">Manage your profile and API configuration.</p>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <div class="config-section" id="section-profile">
+        <h3>Profile</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div class="config-field">
+            <label>First Name</label>
+            <input type="text" id="firstName" placeholder="First name" style="font-family:inherit;">
+          </div>
+          <div class="config-field">
+            <label>Last Name</label>
+            <input type="text" id="lastName" placeholder="Last name" style="font-family:inherit;">
+          </div>
+        </div>
+        <div class="config-field">
+          <label>Company Name</label>
+          <input type="text" id="companyName" placeholder="Company name (optional)" style="font-family:inherit;">
+        </div>
+        <div class="config-field">
+          <label>Email</label>
+          <input type="email" id="email" placeholder="you@example.com" style="font-family:inherit;">
+        </div>
+      </div>
+
+      <div class="config-section" id="section-ebay-trading">
+        <h3>eBay Trading API</h3>
+        <div class="config-field">
+          <label>eBay Auth Token <span class="status" id="statusEbayToken"></span></label>
+          <input type="password" id="ebayToken" placeholder="v^1.1#i^1#...">
+          <div class="hint">Your eBay user auth token for the Trading API</div>
+        </div>
+      </div>
+
+      <div class="config-section" id="section-ebay-oauth">
+        <h3>eBay OAuth (Browse API)</h3>
+        <div class="config-field">
+          <label>App ID / Client ID <span class="status" id="statusEbayClientId"></span></label>
+          <input type="password" id="ebayClientId" placeholder="YourApp-MyApp-PRD-...">
+        </div>
+        <div class="config-field">
+          <label>Cert ID / Client Secret <span class="status" id="statusEbayClientSecret"></span></label>
+          <input type="password" id="ebayClientSecret" placeholder="PRD-...">
+        </div>
+      </div>
+
+      <div class="config-section" id="section-template">
+        <h3>Listing Template</h3>
+        <div class="config-field">
+          <label>Preferred HTML Template</label>
+          <textarea id="exampleTemplate" rows="10" placeholder="Paste your example eBay listing HTML here..."></textarea>
+          <div class="hint">Optional. Paste an HTML example of how you want your listings to look. The AI will use this as a reference for structure and styling when generating descriptions.</div>
+        </div>
+      </div>
+
+      <div class="save-row">
+        <button class="btn-primary" id="saveBtn">Save Configuration</button>
+        <span class="save-msg" id="saveMsg">Saved successfully!</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let userRole = 'admin';
+
+    // Load current config on page load
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me');
+        const me = await resp.json();
+        if (!me.authenticated) { window.location.href = '/login.html'; return; }
+
+        userRole = me.role || 'admin';
+
+        // Populate user avatar
+        if (me.firstName) {
+          const avatar = document.getElementById('userAvatar');
+          avatar.textContent = me.firstName.charAt(0).toUpperCase();
+          avatar.title = me.firstName;
+          avatar.style.display = 'flex';
+        }
+
+        // Show Manage Users nav link for admins
+        if (userRole === 'admin') {
+          document.getElementById('navUsers').style.display = '';
+        }
+
+        // Role-based section visibility
+        if (userRole !== 'admin') {
+          document.getElementById('section-ebay-trading').style.display = 'none';
+          document.getElementById('section-ebay-oauth').style.display = 'none';
+        }
+        if (userRole === 'operator') {
+          document.getElementById('section-template').style.display = 'none';
+        }
+
+        const cfgResp = await fetch('/api/config');
+        const cfg = await cfgResp.json();
+
+        // Populate profile fields
+        document.getElementById('firstName').value = cfg.first_name || '';
+        document.getElementById('lastName').value = cfg.last_name || '';
+        document.getElementById('companyName').value = cfg.company_name || '';
+        document.getElementById('email').value = cfg.email || '';
+        document.getElementById('exampleTemplate').value = cfg.example_template || '';
+
+        // eBay status badges (only present for admins)
+        if (userRole === 'admin') {
+          const fields = [
+            ['statusEbayToken', cfg.ebay_token],
+            ['statusEbayClientId', cfg.ebay_client_id],
+            ['statusEbayClientSecret', cfg.ebay_client_secret],
+          ];
+          for (const [elId, val] of fields) {
+            const el = document.getElementById(elId);
+            if (!el) continue;
+            if (val && val.set) {
+              el.textContent = 'Configured';
+              el.className = 'status status-set';
+            } else {
+              el.textContent = 'Not set';
+              el.className = 'status status-unset';
+            }
+          }
+        }
+
+      } catch (err) {
+        console.error('Failed to load config:', err);
+      }
+    })();
+
+    // Save config
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('saveBtn');
+      const saveMsg = document.getElementById('saveMsg');
+      const errorMsg = document.getElementById('errorMsg');
+      errorMsg.style.display = 'none';
+      saveMsg.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      const body = {};
+
+      // Profile fields (always send current values)
+      const profileFields = {
+        firstName: 'first_name',
+        lastName: 'last_name',
+        companyName: 'company_name',
+        email: 'email',
+      };
+      for (const [inputId, bodyKey] of Object.entries(profileFields)) {
+        const val = document.getElementById(inputId).value.trim();
+        body[bodyKey] = val;
+      }
+
+      // Template (admin + publisher only)
+      if (userRole !== 'operator') {
+        body.example_template = document.getElementById('exampleTemplate').value;
+      }
+
+      // eBay fields (admin only, only send if user typed a new value)
+      if (userRole === 'admin') {
+        const ebayFields = {
+          ebayToken: 'ebay_token',
+          ebayClientId: 'ebay_client_id',
+          ebayClientSecret: 'ebay_client_secret',
+        };
+        for (const [inputId, bodyKey] of Object.entries(ebayFields)) {
+          const val = document.getElementById(inputId).value.trim();
+          if (val) body[bodyKey] = val;
+        }
+      }
+
+      try {
+        const resp = await fetch('/api/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          saveMsg.style.display = 'inline';
+          setTimeout(() => { saveMsg.style.display = 'none'; }, 3000);
+          window.location.reload();
+        } else {
+          errorMsg.textContent = data.error;
+          errorMsg.style.display = 'block';
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Network error. Please try again.';
+        errorMsg.style.display = 'block';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Configuration';
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+  </script>
+</body>
+</html>

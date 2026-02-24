@@ -1,0 +1,3060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>pic2list</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 18px 32px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header h1 {
+      font-size: 24px; font-weight: 800; color: #4f6ef7;
+      letter-spacing: -0.5px;
+    }
+    header span { font-size: 13px; color: #8b8fa3; margin-top: 2px; }
+
+    .container { max-width: 1300px; margin: 0 auto; padding: 32px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #cbd5e1; border-radius: 16px; padding: 56px 48px;
+      text-align: center; cursor: pointer; transition: all 0.2s;
+      background: #fff;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #4f6ef7; background: #f0f3ff;
+    }
+    .drop-zone h2 { font-size: 18px; font-weight: 600; color: #3a3f5c; margin-bottom: 8px; }
+    .drop-zone p { font-size: 13px; color: #8b8fa3; }
+    .drop-zone input { display: none; }
+
+    /* Image grid */
+    .image-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px; margin-top: 24px;
+    }
+    .image-card {
+      position: relative; border-radius: 10px; overflow: hidden;
+      background: #e9ecef; aspect-ratio: 1;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .image-card img { width: 100%; height: 100%; object-fit: cover; }
+    .image-card .remove-btn {
+      position: absolute; top: 6px; right: 6px; width: 24px; height: 24px;
+      background: rgba(0,0,0,0.55); border: none; border-radius: 50%;
+      color: #fff; font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .image-card:hover .remove-btn { opacity: 1; }
+
+    /* Buttons */
+    .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
+    .btn {
+      padding: 10px 24px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: #4f6ef7; color: #fff; }
+    .btn-primary:hover { background: #3b5ce4; }
+    .btn-primary:disabled { background: #c5cee8; color: #8895b3; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: #e9ecef; color: #555b6e; }
+    .btn-secondary:hover { background: #dde1e6; }
+    .btn-green { background: #22c55e; color: #fff; }
+    .btn-green:hover { background: #16a34a; }
+    .btn-green:disabled { background: #bbf7d0; color: #86efac; cursor: not-allowed; transform: none; }
+    .btn-red { background: #ef4444; color: #fff; }
+    .btn-red:hover { background: #dc2626; }
+    .btn-red:disabled { background: #fecaca; color: #f87171; cursor: not-allowed; transform: none; }
+    .btn-sm { padding: 7px 16px; font-size: 12px; }
+    .btn-xs { padding: 5px 12px; font-size: 11px; border-radius: 8px; }
+
+    .status-text { font-size: 13px; color: #8b8fa3; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid #d1d5db; border-top-color: #4f6ef7; border-radius: 50%;
+      animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    .spinner-green { border-top-color: #22c55e; }
+    .spinner-sm { width: 12px; height: 12px; border-width: 1.5px; margin-right: 5px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ══════════════════════════════════════
+       Product Table
+       ══════════════════════════════════════ */
+    .results-section { margin-top: 40px; }
+
+    .results-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .results-toolbar h2 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .results-toolbar-actions { display: flex; gap: 10px; }
+
+    .product-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+      background: #fff; border-radius: 14px; overflow: hidden;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .product-table thead th {
+      padding: 10px 14px; font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #8b8fa3; background: #f8f9fb; border-bottom: 1px solid #e5e7eb;
+      text-align: left; white-space: nowrap;
+    }
+    .product-table tbody tr {
+      border-bottom: 1px solid #f0f1f3; transition: background 0.15s;
+    }
+    .product-table tbody tr:hover { background: #f8f9fb; }
+    .product-table tbody tr:last-child { border-bottom: none; }
+    .product-table tbody td {
+      padding: 12px 14px; vertical-align: top; font-size: 13px;
+    }
+
+    /* Row states */
+    .product-table tbody tr.row-rejected { opacity: 0.35; }
+    .product-table tbody tr.row-listed { background: #f0fdf4; }
+
+    /* Images cell */
+    .cell-images { display: flex; gap: 4px; flex-wrap: nowrap; max-width: 160px; overflow-x: auto; }
+    .cell-thumb {
+      width: 44px; height: 44px; min-width: 44px; border-radius: 8px; object-fit: cover;
+      background: #f0f1f3; border: 1px solid #e5e7eb; cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .cell-thumb:hover { border-color: #4f6ef7; }
+
+    /* Product info cell */
+    .cell-product-title {
+      font-size: 13px; font-weight: 600; color: #1a1a2e;
+      margin-bottom: 3px; line-height: 1.3;
+      max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .confidence-badge {
+      display: inline-block; font-size: 10px; font-weight: 600;
+      padding: 1px 5px; border-radius: 4px; margin-left: 5px;
+      cursor: default; vertical-align: middle;
+    }
+    .confidence-high { background: #dcfce7; color: #166534; }
+    .confidence-med { background: #fef9c3; color: #854d0e; }
+    .confidence-low { background: #fee2e2; color: #991b1b; }
+    .cell-product-meta {
+      font-size: 11px; color: #8b8fa3; line-height: 1.5;
+    }
+    .cell-product-meta span { margin-right: 10px; white-space: nowrap; }
+    .cell-editable { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; transition: background 0.15s; }
+    .cell-editable:hover { background: #eef1ff; }
+    .cell-edit-inline { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-bottom: 3px; }
+    .cell-edit-input {
+      padding: 4px 8px; border: 1px solid #4f6ef7; border-radius: 6px;
+      font-size: 12px; outline: none; background: #fff; color: #1a1a2e;
+      font-family: inherit; width: 180px;
+    }
+    .cell-edit-save {
+      padding: 3px 10px; border: none; border-radius: 6px; background: #22c55e;
+      color: #fff; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .cell-edit-save:hover { background: #16a34a; }
+    .cell-edit-cancel {
+      padding: 3px 8px; border: none; border-radius: 6px; background: #e9ecef;
+      color: #555b6e; font-size: 13px; cursor: pointer; line-height: 1;
+    }
+    .cell-edit-cancel:hover { background: #d1d5db; }
+
+    /* Price input */
+    .cell-price-input {
+      width: 80px; padding: 5px 8px; border: 1px solid #d1d5db;
+      border-radius: 8px; background: #fff; color: #1a1a2e;
+      font-size: 13px; outline: none; transition: border-color 0.15s;
+    }
+    .cell-price-input:focus { border-color: #4f6ef7; }
+
+    /* Price range */
+    .price-cell-wrap { display: flex; flex-direction: column; gap: 4px; }
+    .price-range-btn {
+      background: none; border: 1px solid #d1d5db; border-radius: 6px;
+      color: #4f6ef7; font-size: 11px; cursor: pointer; padding: 2px 6px;
+      white-space: nowrap; transition: all 0.15s;
+    }
+    .price-range-btn:hover { background: #eef1ff; border-color: #4f6ef7; }
+    .price-range-info {
+      font-size: 11px; color: #555b6e; line-height: 1.4;
+      background: #f0f4ff; border-radius: 6px; padding: 4px 7px;
+      min-width: 110px;
+    }
+    .price-range-info .pr-label { color: #8b8fa3; font-size: 10px; }
+    .price-range-info .pr-val { font-weight: 600; color: #1a1a2e; }
+
+    /* Category autocomplete */
+    .cat-autocomplete { position: relative; }
+    .cat-autocomplete input {
+      width: 100%; padding: 7px 10px; border: 1px solid #d1d5db;
+      border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;
+    }
+    .cat-autocomplete input:focus { border-color: #4f6ef7; }
+    .cat-selected {
+      display: flex; align-items: center; gap: 6px;
+      background: #eef1ff; border-radius: 6px; padding: 5px 8px; margin-bottom: 6px;
+      font-size: 12px; color: #1a1a2e;
+    }
+    .cat-selected .cat-name { font-weight: 600; }
+    .cat-selected .cat-id { color: #8b8fa3; font-size: 11px; }
+    .cat-selected .cat-clear {
+      margin-left: auto; cursor: pointer; color: #8b8fa3; font-size: 14px;
+      border: none; background: none; padding: 0 4px; line-height: 1;
+    }
+    .cat-selected .cat-clear:hover { color: #ef4444; }
+    .cat-dropdown {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+      background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12); max-height: 220px;
+      overflow-y: auto; margin-top: 2px; display: none;
+    }
+    .cat-dropdown.open { display: block; }
+    .cat-dropdown-item {
+      padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #f0f0f0;
+      transition: background 0.1s;
+    }
+    .cat-dropdown-item:last-child { border-bottom: none; }
+    .cat-dropdown-item:hover { background: #eef1ff; }
+    .cat-dropdown-item .cat-item-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+    .cat-dropdown-item .cat-item-path { font-size: 11px; color: #8b8fa3; margin-top: 1px; }
+    .cat-dropdown-loading { padding: 10px; text-align: center; color: #8b8fa3; font-size: 12px; }
+
+    /* Condition select */
+    .cell-cond-select {
+      padding: 5px 6px; border: 1px solid #d1d5db;
+      border-radius: 8px; background: #fff; color: #1a1a2e;
+      font-size: 12px; outline: none; width: 100%;
+      max-width: 130px;
+    }
+    .cell-cond-select:focus { border-color: #4f6ef7; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+    }
+    .badge-pending { background: #e0ecff; color: #3b6cf7; }
+    .badge-generating { background: #fef3c7; color: #b45309; }
+    .badge-ready { background: #dcfce7; color: #16a34a; }
+    .badge-listing { background: #fef3c7; color: #b45309; }
+    .badge-listed { background: #22c55e; color: #fff; }
+    .badge-rejected { background: #fee2e2; color: #dc2626; }
+    .badge-verifying { background: #f3e8ff; color: #7c3aed; }
+    .btn-claude {
+      background: #7c3aed; color: #fff;
+    }
+    .btn-claude:hover { background: #6d28d9; }
+    .btn-claude:disabled { background: #ddd6fe; color: #a78bfa; cursor: not-allowed; transform: none; }
+    .btn-claude.verified { background: #e9ecef; color: #8b8fa3; cursor: default; transform: none; }
+
+    /* Actions cell */
+    .cell-actions { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+
+    /* eBay link in status */
+    .ebay-link { color: #4f6ef7; text-decoration: none; font-size: 11px; }
+    .ebay-link:hover { text-decoration: underline; }
+
+    /* ══════════════════════════════════════
+       Detail Modal
+       ══════════════════════════════════════ */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.35); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+      width: 90vw; max-width: 900px; max-height: 85vh;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; border-bottom: 1px solid #e5e7eb;
+    }
+    .modal-header h3 {
+      font-size: 15px; font-weight: 600; color: #1a1a2e;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; margin-right: 16px;
+    }
+    .modal-close {
+      width: 32px; height: 32px; border: none; border-radius: 8px;
+      background: #f0f1f3; color: #8b8fa3; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .modal-close:hover { background: #e5e7eb; color: #1a1a2e; }
+
+    .modal-body {
+      padding: 20px 24px; overflow-y: auto; flex: 1;
+    }
+
+    /* Modal: Image strip */
+    .modal-images {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding-bottom: 8px; margin-bottom: 16px;
+    }
+    .modal-images::-webkit-scrollbar { height: 5px; }
+    .modal-images::-webkit-scrollbar-track { background: transparent; }
+    .modal-images::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    .modal-thumb {
+      width: 80px; height: 80px; border-radius: 10px; object-fit: cover;
+      flex-shrink: 0; background: #f0f1f3; border: 2px solid transparent;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .modal-thumb:hover { border-color: #4f6ef7; }
+    .modal-thumb-remove {
+      position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
+      background: rgba(0,0,0,0.6); border: none; border-radius: 50%;
+      color: #fff; font-size: 12px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; opacity: 0;
+      transition: opacity 0.15s; line-height: 1;
+    }
+    .modal-thumb-wrap { position: relative; flex-shrink: 0; cursor: grab; }
+    .modal-thumb-wrap.dragging { opacity: 0.4; }
+    .modal-thumb-wrap.drag-over-left { box-shadow: -3px 0 0 0 #4f6ef7; }
+    .modal-thumb-wrap.drag-over-right { box-shadow: 3px 0 0 0 #4f6ef7; }
+    .modal-thumb-wrap:hover .modal-thumb-remove { opacity: 1; }
+    .modal-thumb-edit {
+      position: absolute; bottom: 2px; left: 2px; width: 20px; height: 20px;
+      background: rgba(79, 110, 247, 0.85); border: none; border-radius: 50%;
+      color: #fff; font-size: 10px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; opacity: 0;
+      transition: opacity 0.15s; line-height: 1;
+    }
+    .modal-thumb-wrap:hover .modal-thumb-edit { opacity: 1; }
+
+    /* Image Editor */
+    .editor-toolbar {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center;
+    }
+    .editor-toolbar button {
+      padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; color: #555b6e; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px;
+    }
+    .editor-toolbar button:hover { border-color: #4f6ef7; color: #4f6ef7; }
+    .editor-toolbar button.active { background: #4f6ef7; color: #fff; border-color: #4f6ef7; }
+    .editor-canvas-wrap {
+      position: relative; display: inline-block; border: 1px solid #e5e7eb;
+      border-radius: 8px; overflow: hidden; background: #f0f1f3;
+      max-width: 100%;
+    }
+    .editor-canvas-wrap canvas { display: block; max-width: 100%; }
+    .editor-options {
+      display: flex; gap: 12px; align-items: center; margin-top: 12px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .editor-options label {
+      font-size: 12px; font-weight: 600; color: #555b6e;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .editor-options input[type="color"] {
+      width: 28px; height: 28px; border: 1px solid #d1d5db; border-radius: 6px;
+      padding: 0; cursor: pointer;
+    }
+    .editor-options input[type="range"] { width: 120px; accent-color: #4f6ef7; }
+    .editor-footer { display: flex; gap: 10px; align-items: center; padding: 12px 20px; border-top: 1px solid #e5e7eb; }
+    .editor-footer .spacer { flex: 1; }
+
+    .modal-add-photo {
+      width: 80px; height: 80px; border-radius: 10px; flex-shrink: 0;
+      border: 2px dashed #cbd5e1; background: #f8f9fb;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      cursor: pointer; transition: all 0.15s; gap: 2px;
+    }
+    .modal-add-photo:hover { border-color: #4f6ef7; background: #eef1ff; }
+    .modal-add-photo span { font-size: 22px; color: #8b8fa3; line-height: 1; }
+    .modal-add-photo small { font-size: 9px; color: #8b8fa3; font-weight: 600; }
+
+    /* Modal: Title block */
+    .modal-title-block {
+      background: #f8f9fb; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 14px;
+    }
+    .modal-title-label {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #8b8fa3; margin-bottom: 5px;
+    }
+    .modal-title-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .modal-title-text {
+      font-size: 14px; font-weight: 600; color: #1a1a2e; flex: 1;
+      background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+      padding: 7px 10px; outline: none; transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .modal-title-text:focus { border-color: #4f6ef7; }
+    .modal-title-charcount { font-size: 11px; color: #8b8fa3; white-space: nowrap; }
+
+    .copy-btn {
+      padding: 4px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+      background: #fff; color: #8b8fa3; font-size: 11px;
+      cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    }
+    .copy-btn:hover { border-color: #a0a5b8; color: #555b6e; }
+    .copy-btn.copied { border-color: #22c55e; color: #16a34a; }
+
+    /* Modal: Description tabs */
+    .modal-desc-block {
+      background: #f8f9fb; border: 1px solid #e5e7eb; border-radius: 10px;
+      overflow: hidden; margin-bottom: 16px;
+    }
+    .modal-desc-tabs { display: flex; border-bottom: 1px solid #e5e7eb; }
+    .modal-desc-tab {
+      padding: 8px 16px; font-size: 12px; font-weight: 600;
+      color: #8b8fa3; background: transparent; border: none;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .modal-desc-tab:hover { color: #555b6e; }
+    .modal-desc-tab.active { color: #4f6ef7; background: #fff; }
+    .modal-desc-preview {
+      padding: 16px; max-height: 350px; overflow-y: auto;
+      background: #fff; color: #000;
+    }
+    .modal-desc-code { padding: 16px; max-height: 300px; overflow: auto; display: none; }
+    .modal-desc-code pre {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px; color: #64748b; white-space: pre-wrap;
+      word-break: break-all; line-height: 1.5;
+    }
+    .modal-desc-edit {
+      display: none; padding: 0;
+    }
+    .modal-desc-edit textarea {
+      width: 100%; min-height: 280px; padding: 16px; border: none;
+      background: #fff; color: #334155; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px; line-height: 1.5; resize: vertical; outline: none;
+    }
+
+    /* Modal: Fields grid */
+    .modal-fields {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      margin-bottom: 16px;
+    }
+    .modal-field label {
+      display: block; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: #8b8fa3; margin-bottom: 4px;
+    }
+    .modal-field input,
+    .modal-field select {
+      width: 100%; padding: 7px 10px; border: 1px solid #d1d5db;
+      border-radius: 8px; background: #fff; color: #1a1a2e;
+      font-size: 13px; outline: none; transition: border-color 0.15s;
+    }
+    .modal-field input:focus,
+    .modal-field select:focus { border-color: #4f6ef7; }
+    .modal-field .aspect-combo {
+      position: relative;
+    }
+    .modal-field .aspect-combo input {
+      padding-right: 28px;
+    }
+    .modal-field .aspect-combo .aspect-arrow {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; font-size: 10px; color: #8b8fa3;
+    }
+    .modal-field .aspect-combo .aspect-list {
+      position: absolute; top: 100%; left: 0; right: 0; max-height: 180px;
+      overflow-y: auto; background: #fff; border: 1px solid #d1d5db; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; display: none;
+    }
+    .modal-field .aspect-combo .aspect-list.open { display: block; }
+    .modal-field .aspect-combo .aspect-option {
+      padding: 6px 10px; font-size: 12px; cursor: pointer;
+    }
+    .modal-field .aspect-combo .aspect-option:hover { background: #f0f3ff; }
+    .modal-field label .req { color: #ef4444; font-size: 10px; margin-left: 4px; }
+    .aspects-section-title {
+      font-size: 11px; font-weight: 700; color: #4f6ef7; text-transform: uppercase;
+      letter-spacing: 0.5px; margin: 16px 0 8px; padding-bottom: 6px;
+      border-bottom: 1px solid #eef1ff; grid-column: 1 / -1;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .aspects-autofill-btn {
+      margin-left: auto; padding: 3px 10px; border: 1px solid #4f6ef7; border-radius: 6px;
+      background: #eef1ff; color: #4f6ef7; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; text-transform: none; letter-spacing: 0;
+    }
+    .aspects-autofill-btn:hover { background: #4f6ef7; color: #fff; }
+    .aspects-autofill-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .aspects-loading {
+      grid-column: 1 / -1; font-size: 12px; color: #8b8fa3; padding: 8px 0;
+    }
+
+    /* Modal: Footer actions */
+    .modal-footer {
+      padding: 14px 24px; border-top: 1px solid #e5e7eb;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-footer .spacer { flex: 1; }
+    .modal-status { font-size: 12px; color: #8b8fa3; }
+    .modal-status a { color: #4f6ef7; text-decoration: none; }
+
+    /* Offers & Promotions */
+    .offers-section { margin-bottom: 16px; }
+    .offers-section-title {
+      font-size: 11px; font-weight: 700; color: #4f6ef7; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 10px; padding-bottom: 6px;
+      border-bottom: 1px solid #eef1ff;
+    }
+    .offers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .offer-toggle label {
+      display: flex; align-items: center; gap: 8px; font-size: 13px;
+      font-weight: 600; color: #1a1a2e; cursor: pointer;
+    }
+    .offer-toggle input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: #4f6ef7; cursor: pointer;
+    }
+    .offer-sub-fields {
+      grid-column: 1 / -1; display: none; gap: 14px;
+      background: #f8f9fb; border-radius: 10px; padding: 14px;
+    }
+    .offer-sub-fields.open { display: grid; grid-template-columns: 1fr 1fr; }
+    .offer-hint { font-size: 10px; color: #8b8fa3; margin-top: 3px; }
+
+    /* Recent Listings */
+    .recent-listings { margin-top: 32px; }
+    .recent-listings h2 {
+      font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 14px;
+    }
+    .recent-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .recent-card {
+      display: flex; gap: 12px; background: #fff; border-radius: 12px;
+      padding: 14px; border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); align-items: center;
+    }
+    .recent-card img {
+      width: 56px; height: 56px; border-radius: 8px; object-fit: cover;
+      background: #e9ecef; flex-shrink: 0;
+    }
+    .recent-card .recent-info { flex: 1; min-width: 0; }
+    .recent-card .recent-title {
+      font-size: 13px; font-weight: 600; color: #1a1a2e;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .recent-card .recent-meta { font-size: 11px; color: #8b8fa3; margin-top: 3px; }
+    .recent-card .recent-meta a { color: #4f6ef7; text-decoration: none; font-weight: 600; }
+    .recent-card .recent-meta a:hover { text-decoration: underline; }
+    .recent-card .recent-price { font-size: 14px; font-weight: 700; color: #22c55e; white-space: nowrap; }
+
+    @media (max-width: 900px) {
+      .container { padding: 16px; }
+      .product-table thead { display: none; }
+      .product-table tbody tr { display: flex; flex-wrap: wrap; padding: 12px; gap: 10px; border-bottom: 1px solid #e5e7eb; }
+      .product-table tbody td { padding: 0; }
+      .modal-fields { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>pic2list</h1>
+    <span>Upload photos, identify products, list on eBay</span>
+    <nav style="margin-left:auto; display:flex; gap:16px; align-items:center;">
+      <a href="/" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600;">Dashboard</a>
+      <a href="/config.html" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600;">Settings</a>
+      <a href="/users.html" id="navUsers" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600; display:none;">Manage Users</a>
+      <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
+      <button class="btn btn-secondary btn-xs" id="logoutBtn" style="font-size:12px;">Log Out</button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="drop-zone" id="dropZone">
+      <h2>Drop images here or click to browse</h2>
+      <p>Upload multiple photos — they'll be grouped by product automatically</p>
+      <input type="file" id="fileInput" accept="image/*" multiple>
+    </div>
+
+    <div class="image-grid" id="imageGrid"></div>
+
+    <div class="actions" id="actions" style="display:none;">
+      <button class="btn btn-primary" id="submitBtn">Identify &amp; Group Products</button>
+      <button class="btn btn-secondary" id="clearBtn">Clear All</button>
+      <span class="status-text" id="uploadCounter" style="font-size:12px;"></span>
+      <span class="status-text" id="statusText"></span>
+    </div>
+
+    <div class="recent-listings" id="recentListings" style="display:none;">
+      <h2>Recent Listings</h2>
+      <div class="recent-grid" id="recentGrid"></div>
+    </div>
+
+    <div class="results-section" id="resultsSection" style="display:none;">
+      <div class="results-toolbar">
+        <h2 id="resultsHeading">Identified Products</h2>
+        <div class="results-toolbar-actions">
+          <button class="btn btn-green btn-sm" id="generateAllBtn" style="display:none;">Generate All</button>
+          <button class="btn btn-primary btn-sm" id="listAllBtn" style="display:none;">Publish All</button>
+        </div>
+      </div>
+      <table class="product-table" id="productTable">
+        <thead>
+          <tr>
+            <th>Images</th>
+            <th>Product</th>
+            <th>Price</th>
+            <th>SKU</th>
+            <th>Condition</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Product Details</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <!-- Image Editor Modal -->
+  <div class="modal-overlay" id="editorOverlay" style="z-index:1100;">
+    <div class="modal" id="editorModal" style="max-width:720px;">
+      <div class="modal-header">
+        <h3 id="editorTitle">Edit Image</h3>
+        <button class="modal-close" id="editorClose">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; align-items:center;">
+        <div id="editorToolbar"></div>
+        <div id="editorCanvasWrap"></div>
+        <div id="editorOptions"></div>
+      </div>
+      <div class="editor-footer" id="editorFooter"></div>
+    </div>
+  </div>
+
+  <script>
+    // Auth check — redirect to login if not authenticated
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me');
+        const data = await resp.json();
+        if (!data.authenticated) { window.location.href = '/login.html'; return; }
+
+        window._userRole = data.role || 'admin';
+        window._userId = data.userId;
+
+        // Populate user avatar
+        if (data.firstName) {
+          const avatar = document.getElementById('userAvatar');
+          avatar.textContent = data.firstName.charAt(0).toUpperCase();
+          avatar.title = data.firstName;
+          avatar.style.display = 'flex';
+        }
+
+        // Load example template from config
+        try {
+          const cfgResp = await fetch('/api/config');
+          const cfg = await cfgResp.json();
+          window._exampleTemplate = cfg.example_template || '';
+        } catch { window._exampleTemplate = ''; }
+
+        // Show Manage Users nav link for admins
+        if (window._userRole === 'admin') {
+          document.getElementById('navUsers').style.display = '';
+        }
+
+        // Update button labels for operator role
+        if (window._userRole === 'operator') {
+          document.getElementById('generateAllBtn').textContent = 'Generate All Drafts';
+        }
+
+        // Load drafts from database
+        await loadDraftsFromDB();
+
+        // Load recent listings
+        loadRecentListings();
+      } catch { window.location.href = '/login.html'; }
+    })();
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    }
+
+    // Wrap fetch to handle 401 → redirect
+    async function apiFetch(url, options = {}) {
+      const resp = await fetch(url, options);
+      if (resp.status === 401) {
+        window.location.href = '/login.html';
+        throw new Error('Session expired');
+      }
+      return resp;
+    }
+
+    async function loadRecentListings() {
+      try {
+        const resp = await apiFetch('/api/listings/recent');
+        const data = await resp.json();
+        if (!data.success || !data.listings || data.listings.length === 0) return;
+
+        const container = document.getElementById('recentListings');
+        const grid = document.getElementById('recentGrid');
+        container.style.display = '';
+
+        grid.innerHTML = data.listings.map(l => {
+          const date = new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const ebayUrl = `https://www.ebay.com/itm/${l.ebay_item_id}`;
+          const thumb = l.thumbnail_url
+            ? `<img src="${l.thumbnail_url}" alt="">`
+            : `<div style="width:56px;height:56px;border-radius:8px;background:#e9ecef;flex-shrink:0;"></div>`;
+          return `
+            <div class="recent-card">
+              ${thumb}
+              <div class="recent-info">
+                <div class="recent-title" title="${l.title}">${l.title}</div>
+                <div class="recent-meta">
+                  <a href="${ebayUrl}" target="_blank">#${l.ebay_item_id}</a> &middot; ${date}${l.created_by_first_name ? ` &middot; by ${l.created_by_first_name}` : ''}
+                </div>
+              </div>
+              <div class="recent-price">$${parseFloat(l.price).toFixed(2)}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load recent listings:', err);
+      }
+    }
+
+    const VISION_URL = '/api/vision/annotate';
+    const OPENAI_URL = '/api/openai/chat';
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const imageGrid = document.getElementById('imageGrid');
+    const actions = document.getElementById('actions');
+    const submitBtn = document.getElementById('submitBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusText = document.getElementById('statusText');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsHeading = document.getElementById('resultsHeading');
+    const generateAllBtn = document.getElementById('generateAllBtn');
+    const listAllBtn = document.getElementById('listAllBtn');
+    const productTableBody = document.getElementById('productTableBody');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalFooter = document.getElementById('modalFooter');
+
+    let imageFiles = [];
+    let clusterData = [];
+    let currentModalIndex = -1;
+    let totalRawBytes = 0;
+    const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function updateUploadCounter() {
+      const counter = document.getElementById('uploadCounter');
+      if (!counter) return;
+      if (imageFiles.length === 0) { counter.textContent = ''; return; }
+      const pct = ((totalRawBytes / MAX_UPLOAD_BYTES) * 100).toFixed(0);
+      counter.textContent = `${imageFiles.length} image${imageFiles.length !== 1 ? 's' : ''} — ${formatBytes(totalRawBytes)} / ${formatBytes(MAX_UPLOAD_BYTES)} (${pct}%)`;
+      counter.style.color = totalRawBytes > MAX_UPLOAD_BYTES * 0.9 ? '#e74c3c' : '#8b8fa3';
+    }
+
+    function compressImage(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX_DIM = 1600;
+          let { width, height } = img;
+          if (width > MAX_DIM || height > MAX_DIM) {
+            const scale = MAX_DIM / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const base64 = dataUrl.split(',')[1];
+          resolve({ dataUrl, base64 });
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    // Fetch base64 on-demand for an image (lazy-loaded from DB)
+    async function ensureBase64(imgObj) {
+      if (imgObj.base64) return imgObj.base64;
+      if (!imgObj._imageId) return null;
+      const resp = await apiFetch(`/api/drafts/images/${imgObj._imageId}/base64`);
+      const data = await resp.json();
+      imgObj.base64 = data.base64;
+      return data.base64;
+    }
+
+    // ═══════════════════════════════════════
+    //  Draft persistence (DB-backed, shared across team)
+    // ═══════════════════════════════════════
+    async function loadDraftsFromDB() {
+      try {
+        const resp = await apiFetch('/api/drafts');
+        const data = await resp.json();
+        if (!data.success || !data.drafts || data.drafts.length === 0) return false;
+
+        imageFiles = [];
+        clusterData = [];
+
+        for (const draft of data.drafts) {
+          const clusterItems = [];
+          if (draft.images && draft.images.length > 0) {
+            for (const img of draft.images) {
+              const mimeType = img.mimeType || 'image/jpeg';
+              // Use endpoint URL instead of inline base64 — loads fast, browser caches it
+              const dataUrl = `/api/drafts/images/${img.id}`;
+              const file = new File([], img.filename || 'image.jpg', { type: mimeType });
+
+              const globalIdx = imageFiles.length;
+              imageFiles.push({ file, dataUrl, base64: null, _imageId: img.id });
+              clusterItems.push({
+                index: globalIdx,
+                img: { file, dataUrl, base64: null, _imageId: img.id },
+                response: {},
+              });
+            }
+          }
+
+          clusterData.push({
+            _draftId: draft.id,
+            cluster: clusterItems,
+            productName: draft.product_name,
+            confidence: draft.confidence || 0,
+            brand: draft.brand || '',
+            topLabels: [],
+            topWeb: [],
+            topLogos: [],
+            generatedTitle: draft.generated_title || null,
+            generatedHtml: draft.generated_html || null,
+            suggestedCategoryId: draft.category_id || null,
+            suggestedCategoryName: draft.category_name || null,
+            suggestedBrand: draft.suggested_brand || null,
+            suggestedType: draft.suggested_type || null,
+            suggestedMpn: draft.suggested_mpn || null,
+            ebayItemId: draft.ebay_item_id || null,
+            rejected: draft.status === 'rejected',
+            status: draft.status || 'pending',
+            _claudeVerified: draft.claude_verified || false,
+            _itemAspects: draft.item_aspects || null,
+            _sku: draft.sku || '',
+            _priceRange: draft.price_range || null,
+            _modalQty: draft.quantity ? String(draft.quantity) : '1',
+            _shippingPolicyId: draft.shipping_policy_id || '',
+            _returnPolicyId: draft.return_policy_id || '',
+            _bestOfferEnabled: draft.best_offer_enabled || false,
+            _autoAcceptPrice: draft.auto_accept_price ? String(draft.auto_accept_price) : '',
+            _minBestOfferPrice: draft.min_best_offer_price ? String(draft.min_best_offer_price) : '',
+            _autoPay: draft.auto_pay !== false,
+            _savedPrice: draft.price ? String(draft.price) : '',
+            _savedCondition: draft.condition_id || '3000',
+          });
+        }
+
+        // Re-render the UI
+        renderGrid();
+        if (clusterData.length > 0) {
+          renderProductTable(clusterData);
+          // Restore saved prices, conditions, and SKUs from DB
+          clusterData.forEach((meta, ci) => {
+            if (meta._savedPrice) {
+              const priceEl = document.getElementById(`price-${ci}`);
+              if (priceEl) priceEl.value = meta._savedPrice;
+            }
+            if (meta._savedCondition) {
+              const condEl = document.getElementById(`condition-${ci}`);
+              if (condEl) condEl.value = meta._savedCondition;
+            }
+            if (meta._sku) {
+              const skuEl = document.getElementById(`sku-${ci}`);
+              if (skuEl) skuEl.value = meta._sku;
+            }
+            if (meta._priceRange) {
+              const pr = meta._priceRange;
+              const prContainer = document.getElementById(`priceRange-${ci}`);
+              if (prContainer) {
+                prContainer.innerHTML = `
+                  <div class="price-range-info">
+                    <span class="pr-label">Suggested (${pr.count} listings):</span><br>
+                    <span class="pr-label">Avg:</span> <span class="pr-val">$${pr.avg}</span>
+                    <span class="pr-label">Med:</span> <span class="pr-val">$${pr.median}</span>
+                  </div>
+                `;
+              }
+            }
+          });
+        }
+        return true;
+      } catch (e) {
+        console.error('Failed to load drafts from DB:', e);
+        statusText.textContent = `Could not load saved drafts: ${e.message}`;
+        statusText.style.color = '#e74c3c';
+        return false;
+      }
+    }
+
+    async function createDraftsInDB() {
+      const drafts = clusterData.map(meta => ({
+        productName: meta.productName,
+        brand: meta.brand || null,
+        confidence: meta.confidence || 0,
+        images: meta.cluster.map(item => ({
+          base64: item.img.base64,
+          filename: item.img.file.name,
+          mimeType: item.img.file.type,
+        })),
+      }));
+
+      try {
+        const resp = await apiFetch('/api/drafts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ drafts }),
+        });
+        const data = await resp.json();
+        if (data.success && data.ids) {
+          data.ids.forEach((id, i) => {
+            if (clusterData[i]) clusterData[i]._draftId = id;
+          });
+        } else {
+          console.error('Draft save failed:', data);
+          statusText.textContent = `Warning: drafts may not have saved — ${data.error || 'unknown error'}`;
+          statusText.style.color = '#e74c3c';
+        }
+      } catch (e) {
+        console.error('Failed to save drafts to DB:', e);
+        statusText.textContent = `Warning: could not save drafts — ${e.message}`;
+        statusText.style.color = '#e74c3c';
+      }
+    }
+
+    async function syncDraft(ci) {
+      const meta = clusterData[ci];
+      if (!meta._draftId) return;
+
+      const priceEl = document.getElementById(`price-${ci}`);
+      const condEl = document.getElementById(`condition-${ci}`);
+
+      try {
+        await apiFetch(`/api/drafts/${meta._draftId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: meta.status,
+            generated_title: meta.generatedTitle,
+            generated_html: meta.generatedHtml,
+            category_id: meta.suggestedCategoryId,
+            category_name: meta.suggestedCategoryName,
+            suggested_brand: meta.suggestedBrand,
+            suggested_type: meta.suggestedType,
+            suggested_mpn: meta.suggestedMpn,
+            item_aspects: meta._itemAspects,
+            sku: meta._sku,
+            price: priceEl ? priceEl.value || null : null,
+            condition_id: condEl ? condEl.value : null,
+            quantity: parseInt(meta._modalQty) || 1,
+            shipping_policy_id: meta._shippingPolicyId,
+            return_policy_id: meta._returnPolicyId,
+            best_offer_enabled: meta._bestOfferEnabled || false,
+            auto_accept_price: meta._autoAcceptPrice || null,
+            min_best_offer_price: meta._minBestOfferPrice || null,
+            auto_pay: meta._autoPay !== false,
+            claude_verified: meta._claudeVerified || false,
+            ebay_item_id: meta.ebayItemId,
+            price_range: meta._priceRange,
+            product_name: meta.productName,
+            brand: meta.brand,
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to sync draft:', e);
+      }
+    }
+
+    async function deleteDraft(ci) {
+      const meta = clusterData[ci];
+      if (!meta._draftId) return;
+      try {
+        await apiFetch(`/api/drafts/${meta._draftId}`, { method: 'DELETE' });
+      } catch (e) {
+        console.error('Failed to delete draft:', e);
+      }
+    }
+
+    // ═══════════════════════════════════════
+    //  Drop zone
+    // ═══════════════════════════════════════
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', async () => { await handleFiles(fileInput.files); fileInput.value = ''; });
+
+    async function handleFiles(files) {
+      const fileList = Array.from(files);
+      for (const file of fileList) {
+        if (!file.type.startsWith('image/')) continue;
+        if (totalRawBytes + file.size > MAX_UPLOAD_BYTES) {
+          statusText.textContent = `Upload limit reached (${formatBytes(MAX_UPLOAD_BYTES)}). Remove some images to add more.`;
+          statusText.style.color = '#e74c3c';
+          break;
+        }
+        totalRawBytes += file.size;
+        const { dataUrl, base64 } = await compressImage(file);
+        imageFiles.push({ file, dataUrl, base64, rawSize: file.size });
+        renderGrid();
+        updateUploadCounter();
+      }
+    }
+
+    function renderGrid() {
+      imageGrid.innerHTML = '';
+      imageFiles.forEach((img, i) => {
+        const card = document.createElement('div');
+        card.className = 'image-card';
+        card.innerHTML = `
+          <img src="${img.dataUrl}" alt="${img.file.name}">
+          <button class="remove-btn" data-index="${i}">&times;</button>
+        `;
+        imageGrid.appendChild(card);
+      });
+      imageGrid.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.index);
+          totalRawBytes -= (imageFiles[idx].rawSize || 0);
+          imageFiles.splice(idx, 1);
+          renderGrid();
+          updateUploadCounter();
+        });
+      });
+      actions.style.display = imageFiles.length > 0 ? 'flex' : 'none';
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    clearBtn.addEventListener('click', () => {
+      imageFiles = []; clusterData = []; totalRawBytes = 0;
+      renderGrid();
+      updateUploadCounter();
+      statusText.textContent = ''; statusText.style.color = '';
+      resultsSection.style.display = 'none';
+      productTableBody.innerHTML = '';
+    });
+
+    // ═══════════════════════════════════════
+    //  Step 1: AI identifies & groups products
+    // ═══════════════════════════════════════
+    submitBtn.addEventListener('click', async () => {
+      if (imageFiles.length === 0) return;
+      submitBtn.disabled = true;
+      const totalImages = imageFiles.length;
+      if (totalImages >= 10) {
+        statusText.innerHTML = `<span class="spinner"></span>Analyzing ${totalImages} images...`;
+      } else {
+        statusText.innerHTML = '<span class="spinner"></span>Analyzing & grouping images with AI...';
+      }
+
+      try {
+        const base64Images = imageFiles.map(img => img.base64);
+        const resp = await apiFetch('/api/openrouter/identify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: base64Images })
+        });
+        if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `API error ${resp.status}`); }
+        const data = await resp.json();
+        const groups = data.groups || [];
+
+        statusText.innerHTML = '<span class="spinner"></span>Building product list...';
+
+        clusterData = groups.map(group => {
+          const cluster = group.imageIndices.map(i => ({
+            index: i,
+            img: imageFiles[i],
+            response: {},
+          }));
+          const brand = (group.productName.match(/^(\S+)/)?.[1]) || '';
+          return {
+            cluster,
+            productName: group.productName,
+            confidence: group.confidence || 0,
+            brand,
+            topLabels: [],
+            topWeb: [],
+            topLogos: [],
+            generatedTitle: null, generatedHtml: null,
+            suggestedCategoryId: null, suggestedCategoryName: null,
+            suggestedBrand: null, suggestedType: null, suggestedMpn: null,
+            ebayItemId: null, rejected: false,
+            status: 'pending',
+          };
+        });
+
+        renderProductTable(clusterData);
+        await createDraftsInDB();
+      } catch (err) {
+        statusText.textContent = `Error: ${err.message}`;
+        submitBtn.disabled = false;
+        return;
+      }
+      submitBtn.disabled = false;
+    });
+
+    // ── Clustering ──
+    function jaccardSimilarity(a, b) {
+      if (a.size === 0 && b.size === 0) return 0;
+      let inter = 0; for (const x of a) { if (b.has(x)) inter++; }
+      const u = a.size + b.size - inter;
+      return u === 0 ? 0 : inter / u;
+    }
+    function combinedSimilarity(a, b) {
+      const ls = jaccardSimilarity(a.labels, b.labels);
+      const ws = jaccardSimilarity(a.webEntities, b.webEntities);
+      const lo = jaccardSimilarity(a.logos, b.logos);
+      let gb = 0;
+      if (a.bestGuess && b.bestGuess) {
+        const ag = a.bestGuess.toLowerCase(), bg = b.bestGuess.toLowerCase();
+        if (ag === bg) gb = 0.35; else if (ag.includes(bg) || bg.includes(ag)) gb = 0.2;
+      }
+      return (ls * 0.35) + (ws * 0.35) + (lo * 0.1) + gb + (lo > 0 ? 0.1 : 0);
+    }
+    function clusterImages(analyzed) {
+      const n = analyzed.length;
+      const p = Array.from({ length: n }, (_, i) => i);
+      const find = (x) => { while (p[x] !== x) { p[x] = p[p[x]]; x = p[x]; } return x; };
+      const union = (a, b) => { p[find(a)] = find(b); };
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (combinedSimilarity(analyzed[i], analyzed[j]) >= 0.3) union(i, j);
+      const g = {};
+      for (let i = 0; i < n; i++) { const r = find(i); if (!g[r]) g[r] = []; g[r].push(analyzed[i]); }
+      return Object.values(g);
+    }
+
+    function buildClusterMeta(clusters) {
+      return clusters.map((cluster) => {
+        const mL = new Map(), mW = new Map(), mLo = new Map(), bg = [];
+        cluster.forEach(item => {
+          const r = item.response;
+          (r.labelAnnotations || []).forEach(l => { if (!mL.has(l.description) || mL.get(l.description) < l.score) mL.set(l.description, l.score); });
+          (r.webDetection?.webEntities || []).filter(e => e.description).forEach(e => { if (!mW.has(e.description) || (mW.get(e.description) || 0) < (e.score || 0)) mW.set(e.description, e.score || 0); });
+          (r.logoAnnotations || []).forEach(l => { if (!mLo.has(l.description) || mLo.get(l.description) < l.score) mLo.set(l.description, l.score); });
+          if (item.bestGuess) bg.push(item.bestGuess);
+        });
+        const gc = {}; bg.forEach(g => { gc[g] = (gc[g] || 0) + 1; });
+        const productName = Object.entries(gc).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown product';
+        const topLabels = [...mL.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+        const topWeb = [...mW.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+        const topLogos = [...mLo.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+        return {
+          cluster, productName, brand: topLogos[0]?.[0] || '', topLabels, topWeb, topLogos,
+          generatedTitle: null, generatedHtml: null,
+          suggestedCategoryId: null, suggestedCategoryName: null,
+          suggestedBrand: null, suggestedType: null, suggestedMpn: null,
+          ebayItemId: null, rejected: false,
+          status: 'pending', // pending | generating | ready | listing | listed | rejected
+        };
+      });
+    }
+
+    // ═══════════════════════════════════════
+    //  Render product table
+    // ═══════════════════════════════════════
+    function renderProductTable(metas) {
+      productTableBody.innerHTML = '';
+      resultsSection.style.display = 'block';
+      generateAllBtn.style.display = metas.length > 0 ? 'inline-flex' : 'none';
+      listAllBtn.style.display = (metas.length > 0 && window._userRole !== 'operator') ? 'inline-flex' : 'none';
+      const total = imageFiles.length;
+      resultsHeading.textContent = `${metas.length} Product${metas.length !== 1 ? 's' : ''} Found — ${total} image${total !== 1 ? 's' : ''}`;
+      statusText.textContent = `Done — ${metas.length} product${metas.length !== 1 ? 's' : ''} identified from ${total} image${total !== 1 ? 's' : ''}`;
+
+      metas.forEach((meta, ci) => {
+        const tr = document.createElement('tr');
+        tr.id = `row-${ci}`;
+        tr.innerHTML = buildRowHtml(ci, meta);
+        productTableBody.appendChild(tr);
+        attachRowEvents(ci);
+      });
+
+      resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function buildRowHtml(ci, meta) {
+      const thumbs = meta.cluster.slice(0, 6).map((item, i) =>
+        `<img class="cell-thumb" src="${item.img.dataUrl}" alt="" title="${escapeHtml(item.img.file.name)}" data-ci="${ci}" data-ti="${i}">`
+      ).join('');
+      const extraCount = meta.cluster.length > 6 ? `<span style="font-size:11px;color:#8b8fa3;">+${meta.cluster.length - 6}</span>` : '';
+
+      const title = meta.generatedTitle || meta.productName;
+      let metaLine = '';
+      if (meta.suggestedBrand || meta.brand) metaLine += `<span>Brand: ${escapeHtml(meta.suggestedBrand || meta.brand)}</span>`;
+      if (meta.suggestedType) metaLine += `<span>Type: ${escapeHtml(meta.suggestedType)}</span>`;
+      if (meta.suggestedCategoryName) metaLine += `<span>Cat: ${escapeHtml(meta.suggestedCategoryName)}</span>`;
+      if (!metaLine && meta.cluster.length) metaLine = `<span>${meta.cluster.length} photo${meta.cluster.length !== 1 ? 's' : ''}</span>`;
+
+      const statusHtml = buildStatusBadge(meta);
+      const actionsHtml = buildActions(ci, meta);
+
+      const canEditIdentification = meta.status === 'pending';
+      const titleCell = canEditIdentification
+        ? `<div class="cell-product-title cell-editable" id="editName-${ci}" title="Click to edit">${escapeHtml(title)}${buildConfidenceBadge(meta.confidence)}</div>
+           <div class="cell-edit-inline" id="editNameForm-${ci}" style="display:none;">
+             <input type="text" class="cell-edit-input" id="editNameInput-${ci}" value="${escapeHtml(meta.productName)}" placeholder="Product name">
+             <input type="text" class="cell-edit-input" id="editBrandInput-${ci}" value="${escapeHtml(meta.brand || '')}" placeholder="Brand" style="width:120px;">
+             <button class="cell-edit-save" id="editNameSave-${ci}">Save</button>
+             <button class="cell-edit-cancel" id="editNameCancel-${ci}">&times;</button>
+           </div>
+           <div class="cell-product-meta" id="metaLine-${ci}">${metaLine}</div>`
+        : `<div class="cell-product-title">${escapeHtml(title)}${buildConfidenceBadge(meta.confidence)}</div>
+           <div class="cell-product-meta">${metaLine}</div>`;
+
+      return `
+        <td><div class="cell-images">${thumbs}${extraCount}</div></td>
+        <td>${titleCell}</td>
+        <td>
+          <div class="price-cell-wrap">
+            <input type="number" class="cell-price-input" id="price-${ci}" placeholder="0.00" min="0.01" step="0.01" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}>
+            ${meta.status !== 'listed' && meta.status !== 'rejected' ? `<button class="price-range-btn" id="priceRangeBtn-${ci}">Suggested Price</button>` : ''}
+            <div id="priceRange-${ci}"></div>
+          </div>
+        </td>
+        <td><input type="text" class="cell-price-input" id="sku-${ci}" placeholder="SKU" maxlength="50" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}></td>
+        <td>
+          <select class="cell-cond-select" id="condition-${ci}" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}>
+            <option value="1000">New</option>
+            <option value="1500">New other</option>
+            <option value="1750">New w/ defects</option>
+            <option value="2500">Refurbished</option>
+            <option value="3000" selected>Used</option>
+            <option value="5000">Good</option>
+            <option value="7000">For parts</option>
+          </select>
+        </td>
+        <td id="status-${ci}">${statusHtml}</td>
+        <td><div class="cell-actions" id="actions-${ci}">${actionsHtml}</div></td>
+      `;
+    }
+
+    function buildConfidenceBadge(score) {
+      if (!score) return '';
+      const cls = score >= 80 ? 'confidence-high' : score >= 50 ? 'confidence-med' : 'confidence-low';
+      const label = score >= 80 ? 'High' : score >= 50 ? 'Medium' : 'Low';
+      return `<span class="confidence-badge ${cls}" title="Identification confidence: ${score}%">${score}%</span>`;
+    }
+
+    function buildStatusBadge(meta) {
+      const s = meta.status;
+      if (s === 'pending') return '<span class="badge badge-pending">Pending</span>';
+      if (s === 'generating') return '<span class="badge badge-generating"><span class="spinner spinner-sm" style="border-top-color:#b45309;"></span>Generating</span>';
+      if (s === 'verifying') return '<span class="badge badge-verifying"><span class="spinner spinner-sm" style="border-top-color:#7c3aed;"></span>Verifying</span>';
+      if (s === 'ready') return window._userRole === 'operator'
+        ? '<span class="badge badge-ready">Draft Ready</span>'
+        : '<span class="badge badge-ready">Ready</span>';
+      if (s === 'listing') return '<span class="badge badge-listing"><span class="spinner spinner-sm" style="border-top-color:#b45309;"></span>Listing</span>';
+      if (s === 'listed') {
+        let html = '<span class="badge badge-listed">Listed</span>';
+        if (meta.ebayItemId) html += `<br><a class="ebay-link" href="https://www.ebay.com/itm/${meta.ebayItemId}" target="_blank">#${meta.ebayItemId}</a>`;
+        return html;
+      }
+      if (s === 'rejected') return '<span class="badge badge-rejected">Rejected</span>';
+      return '';
+    }
+
+    function buildActions(ci, meta) {
+      const s = meta.status;
+      if (s === 'pending') {
+        const genLabel = window._userRole === 'operator' ? 'Generate Draft' : 'Generate with AI';
+        return `<button class="btn btn-green btn-xs" id="genBtn-${ci}">${genLabel}</button>
+                <button class="btn btn-red btn-xs" id="deleteBtn-${ci}" title="Delete">Delete</button>`;
+      }
+      if (s === 'generating') {
+        return `<button class="btn btn-green btn-xs" disabled>Generating...</button>`;
+      }
+      if (s === 'verifying') {
+        return `<button class="btn btn-claude btn-xs" disabled>Refining...</button>`;
+      }
+      if (s === 'ready') {
+        const verifyBtn = meta._claudeVerified
+          ? `<button class="btn btn-claude btn-xs verified" id="verifyBtn-${ci}" title="Already refined" disabled>Refined</button>`
+          : `<button class="btn btn-claude btn-xs" id="verifyBtn-${ci}">Smart Refine</button>`;
+        const publishBtn = window._userRole !== 'operator'
+          ? `<button class="btn btn-green btn-xs" id="listBtn-${ci}">Publish</button>`
+          : '';
+        return `
+          ${verifyBtn}
+          <button class="btn btn-xs" style="background:#f59e0b;color:#fff;" id="detailBtn-${ci}">Preview</button>
+          ${publishBtn}
+          <button class="btn btn-red btn-xs" id="rejectBtn-${ci}">Reject</button>
+        `;
+      }
+      if (s === 'listing') {
+        return `<button class="btn btn-green btn-xs" disabled>Listing...</button>`;
+      }
+      if (s === 'listed') {
+        return `<button class="btn btn-xs" style="background:#e9ecef;color:#555b6e;" id="detailBtn-${ci}">Details</button>`;
+      }
+      if (s === 'rejected') {
+        return `<span style="font-size:11px;color:#8b8fa3;">Rejected</span>`;
+      }
+      return '';
+    }
+
+    function updateRow(ci) {
+      const meta = clusterData[ci];
+      const tr = document.getElementById(`row-${ci}`);
+      if (!tr) return;
+
+      // Save current price/condition/sku before re-rendering
+      const priceEl = document.getElementById(`price-${ci}`);
+      const condEl = document.getElementById(`condition-${ci}`);
+      const skuEl = document.getElementById(`sku-${ci}`);
+      const savedPrice = priceEl ? priceEl.value : '';
+      const savedCond = condEl ? condEl.value : '3000';
+      const savedSku = skuEl ? skuEl.value : (meta._sku || '');
+
+      tr.innerHTML = buildRowHtml(ci, meta);
+      tr.className = meta.status === 'rejected' ? 'row-rejected' : meta.status === 'listed' ? 'row-listed' : '';
+
+      // Restore price/condition/sku
+      const newPrice = document.getElementById(`price-${ci}`);
+      const newCond = document.getElementById(`condition-${ci}`);
+      const newSku = document.getElementById(`sku-${ci}`);
+      if (newPrice && savedPrice) newPrice.value = savedPrice;
+      if (newCond && savedCond) newCond.value = savedCond;
+      if (newSku && savedSku) newSku.value = savedSku;
+
+      // Restore cached price range
+      if (meta._priceRange) {
+        const pr = meta._priceRange;
+        const prContainer = document.getElementById(`priceRange-${ci}`);
+        if (prContainer) {
+          prContainer.innerHTML = `
+            <div class="price-range-info">
+              <span class="pr-label">Suggested (${pr.count} listings):</span><br>
+              <span class="pr-label">Avg:</span> <span class="pr-val">$${pr.avg}</span>
+              <span class="pr-label">Med:</span> <span class="pr-val">$${pr.median}</span>
+            </div>
+          `;
+        }
+      }
+
+      attachRowEvents(ci);
+    }
+
+    function attachRowEvents(ci) {
+      const genBtn = document.getElementById(`genBtn-${ci}`);
+      if (genBtn) genBtn.addEventListener('click', () => generateListing(ci));
+
+      const deleteBtn = document.getElementById(`deleteBtn-${ci}`);
+      if (deleteBtn) deleteBtn.addEventListener('click', () => {
+        deleteDraft(ci);
+        const tr = document.getElementById(`row-${ci}`);
+        if (tr) tr.remove();
+        delete clusterData[ci];
+      });
+
+      const listBtn = document.getElementById(`listBtn-${ci}`);
+      if (listBtn) listBtn.addEventListener('click', () => listOnEbay(ci));
+
+      const detailBtn = document.getElementById(`detailBtn-${ci}`);
+      if (detailBtn) detailBtn.addEventListener('click', () => openModal(ci));
+
+      const rejectBtn = document.getElementById(`rejectBtn-${ci}`);
+      if (rejectBtn) rejectBtn.addEventListener('click', () => rejectListing(ci));
+
+      const verifyBtn = document.getElementById(`verifyBtn-${ci}`);
+      if (verifyBtn && !clusterData[ci]._claudeVerified) verifyBtn.addEventListener('click', () => verifyWithClaude(ci));
+
+      // Inline edit product name / brand
+      const editNameEl = document.getElementById(`editName-${ci}`);
+      const editForm = document.getElementById(`editNameForm-${ci}`);
+      if (editNameEl && editForm) {
+        editNameEl.addEventListener('click', () => {
+          editNameEl.style.display = 'none';
+          const metaLineEl = document.getElementById(`metaLine-${ci}`);
+          if (metaLineEl) metaLineEl.style.display = 'none';
+          editForm.style.display = 'flex';
+          document.getElementById(`editNameInput-${ci}`).focus();
+        });
+        document.getElementById(`editNameCancel-${ci}`).addEventListener('click', () => {
+          editForm.style.display = 'none';
+          editNameEl.style.display = '';
+          const metaLineEl = document.getElementById(`metaLine-${ci}`);
+          if (metaLineEl) metaLineEl.style.display = '';
+        });
+        document.getElementById(`editNameSave-${ci}`).addEventListener('click', () => {
+          const newName = document.getElementById(`editNameInput-${ci}`).value.trim();
+          const newBrand = document.getElementById(`editBrandInput-${ci}`).value.trim();
+          if (newName) clusterData[ci].productName = newName;
+          if (newBrand) clusterData[ci].brand = newBrand;
+          updateRow(ci);
+          syncDraft(ci);
+        });
+        document.getElementById(`editNameInput-${ci}`).addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') document.getElementById(`editNameSave-${ci}`).click();
+          if (e.key === 'Escape') document.getElementById(`editNameCancel-${ci}`).click();
+        });
+        document.getElementById(`editBrandInput-${ci}`).addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') document.getElementById(`editNameSave-${ci}`).click();
+          if (e.key === 'Escape') document.getElementById(`editNameCancel-${ci}`).click();
+        });
+      }
+
+      // Price range lookup
+      const prBtn = document.getElementById(`priceRangeBtn-${ci}`);
+      if (prBtn) prBtn.addEventListener('click', () => lookupPriceRange(ci));
+
+      // Thumb click opens modal
+      const thumbs = document.querySelectorAll(`#row-${ci} .cell-thumb`);
+      thumbs.forEach(t => t.addEventListener('click', () => openModal(ci)));
+    }
+
+    // ── Suggested price lookup ──
+    async function lookupPriceRange(ci) {
+      const meta = clusterData[ci];
+      const btn = document.getElementById(`priceRangeBtn-${ci}`);
+      const container = document.getElementById(`priceRange-${ci}`);
+      if (!container) return;
+
+      const query = meta.generatedTitle || meta.productName || '';
+      if (!query) { alert('No product name to search for.'); return; }
+
+      btn.textContent = 'Looking up...';
+      btn.disabled = true;
+
+      try {
+        const params = new URLSearchParams({ q: query });
+        if (meta.suggestedCategoryId) params.set('category_id', meta.suggestedCategoryId);
+
+        const condSelect = document.getElementById(`condition-${ci}`);
+        if (condSelect) params.set('condition_id', condSelect.value);
+
+        const resp = await apiFetch(`/api/ebay/price-range?${params}`);
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error);
+        if (data.count === 0) {
+          container.innerHTML = '<div class="price-range-info"><span class="pr-label">No listings found</span></div>';
+        } else {
+          container.innerHTML = `
+            <div class="price-range-info">
+              <span class="pr-label">Suggested (${data.count} listings):</span><br>
+              <span class="pr-label">Avg:</span> <span class="pr-val">$${data.avg}</span>
+              <span class="pr-label">Med:</span> <span class="pr-val">$${data.median}</span>
+            </div>
+          `;
+          meta._priceRange = data;
+          syncDraft(ci);
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="price-range-info" style="color:#ef4444;">${err.message}</div>`;
+      }
+      btn.textContent = 'Suggested Price';
+      btn.disabled = false;
+    }
+
+    // ═══════════════════════════════════════
+    //  Generate All + List All
+    // ═══════════════════════════════════════
+    generateAllBtn.addEventListener('click', async () => {
+      generateAllBtn.disabled = true;
+      generateAllBtn.textContent = 'Generating...';
+      for (let i = 0; i < clusterData.length; i++) {
+        if (!clusterData[i].generatedHtml && !clusterData[i].rejected) await generateListing(i);
+      }
+      generateAllBtn.disabled = false;
+      generateAllBtn.textContent = window._userRole === 'operator' ? 'Generate All Drafts' : 'Generate All';
+    });
+
+    listAllBtn.addEventListener('click', async () => {
+      listAllBtn.disabled = true;
+      listAllBtn.textContent = 'Publishing...';
+      for (let i = 0; i < clusterData.length; i++) {
+        const m = clusterData[i];
+        if (m.status === 'ready' && !m.rejected && !m.ebayItemId) {
+          const priceEl = document.getElementById(`price-${i}`);
+          if (priceEl && parseFloat(priceEl.value) > 0) {
+            await listOnEbay(i);
+          }
+        }
+      }
+      listAllBtn.disabled = false;
+      listAllBtn.textContent = 'Publish All';
+    });
+
+    // ═══════════════════════════════════════
+    //  Step 2: OpenAI listing generation
+    // ═══════════════════════════════════════
+    async function generateListing(ci) {
+      const meta = clusterData[ci];
+      meta.status = 'generating';
+      updateRow(ci);
+
+      const prompt = buildPrompt(meta.productName, meta.brand || 'Unknown', meta.topLabels.map(([d]) => d).join(', '), meta.topWeb.map(([d]) => d).join(', '));
+
+      try {
+        const resp = await apiFetch(OPENAI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: 'You are an expert eBay listing copywriter. You output only the requested content, no commentary.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.7,
+            max_completion_tokens: 4000
+          })
+        });
+        if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `OpenAI error ${resp.status}`); }
+        const data = await resp.json();
+        const raw = data.choices[0].message.content.trim();
+        const { title, html, categoryId, categoryName, brand, type, mpn } = parseListingResponse(raw, meta.productName);
+        meta.generatedTitle = title;
+        meta.generatedHtml = html;
+        // Store OpenAI suggestions as fallbacks
+        meta.suggestedBrand = brand;
+        meta.suggestedType = type;
+        meta.suggestedMpn = mpn;
+
+        // Step 2b: Get verified leaf category from eBay Taxonomy API
+        meta.status = 'generating';
+        meta._listingProgress = 'Finding best category...';
+        updateRow(ci);
+
+        try {
+          const catResp = await apiFetch(`/api/ebay/category-suggestions?q=${encodeURIComponent(title || meta.productName)}`);
+          const catData = await catResp.json();
+          if (catData.success && catData.suggestions?.length > 0) {
+            meta.suggestedCategoryId = catData.suggestions[0].id;
+            meta.suggestedCategoryName = catData.suggestions[0].name;
+          } else {
+            // Fallback to OpenAI suggestion
+            meta.suggestedCategoryId = categoryId;
+            meta.suggestedCategoryName = categoryName;
+          }
+        } catch (e) {
+          meta.suggestedCategoryId = categoryId;
+          meta.suggestedCategoryName = categoryName;
+        }
+
+        // Step 2c: Fetch item aspects and auto-fill with AI
+        if (meta.suggestedCategoryId) {
+          meta._listingProgress = 'Filling item specifics...';
+          updateRow(ci);
+          try {
+            await prefillItemAspects(meta);
+          } catch (e) {
+            console.error('Aspect prefill error:', e);
+          }
+        }
+
+        meta.status = 'ready';
+      } catch (err) {
+        meta.status = 'pending';
+        alert(`Generation error for "${meta.productName}": ${err.message}`);
+      }
+      updateRow(ci);
+      await syncDraft(ci);
+    }
+
+    function buildPrompt(product, brand, labels, webEntities) {
+      const defaultExampleHtml = `<div style="max-width:900px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#222;"><div style="background:#003366;padding:20px 30px;text-align:center;border-radius:8px 8px 0 0;"><h1 style="color:#ffffff;font-size:22px;margin:0;">Cisco SG350-28P 28-Port Gigabit PoE Managed Switch</h1></div><div style="padding:25px 30px;background:#f9f9f9;"><p style="font-size:15px;line-height:1.6;color:#333;">The <strong>Cisco SG350-28P</strong> is a high-performance <strong>28-port Gigabit PoE managed network switch</strong> designed for small to medium businesses.</p><h2 style="color:#003366;font-size:17px;border-bottom:2px solid #003366;padding-bottom:6px;">Key Features</h2><ul style="font-size:14px;line-height:1.8;color:#444;"><li><strong>28 Gigabit Ethernet Ports</strong> — 24x PoE+ ports, 2x combo mini-GBIC, 2x SFP</li><li><strong>195W PoE Budget</strong> — Power IP cameras, phones, access points</li><li><strong>Advanced L3 Managed</strong> — Static routing, ACLs, VLAN, QoS</li></ul><h2 style="color:#003366;font-size:17px;border-bottom:2px solid #003366;padding-bottom:6px;">Ideal For</h2><ul style="font-size:14px;line-height:1.8;color:#444;"><li>Small &amp; medium business networks</li><li>VoIP &amp; IP surveillance</li></ul></div><div style="background:#003366;padding:15px 30px;text-align:center;border-radius:0 0 8px 8px;"><p style="color:#ffffff;font-size:13px;margin:0;">Fast Shipping &bull; Professional Packaging &bull; Trusted Seller</p></div></div>`;
+
+      const userTemplate = window._exampleTemplate || '';
+      const exampleHtml = userTemplate || defaultExampleHtml;
+      const templateNote = userTemplate
+        ? `The user has provided their own custom HTML template below. You MUST closely follow its structure, styling, colors, layout, and overall look. Replicate the same design pattern — adapt the content for the new product but keep the template's visual style intact.`
+        : `Use the same HTML color structure and styling as the example provided below.`;
+
+      return `Create a Cassini-optimized eBay product description (score 10/10) for the specified item. ${templateNote}
+
+Follow these detailed instructions:
+- Match the structure and styling of the provided template as closely as possible.
+- Do NOT include any image placeholders, image tags, or image sections in the HTML. eBay handles product images separately.
+- Do not mention any warranty (express or implied).
+- Use flawless English, clear formatting, and no grammatical errors.
+- Add relevant high-ranking eBay keywords (research and include extra keyword variations and synonyms naturally within the text).
+- Emphasize features, compatibility, and typical use cases.
+- Target both enterprise and individual buyers if applicable.
+- Output should be ready for eBay, HTML included, without placeholder text.
+- Make sure the listing description is 100% unique, well-written, and optimized for visibility and relevance in eBay Cassini search.
+- Never change footer.
+- Description must be copy-paste ready for eBay.
+- Avoid extra \\n in the code.
+
+Here is the HTML template to follow:
+${exampleHtml}
+
+Now create the same thing for this item: ${product}
+Brand: ${brand}
+Detected features/labels: ${labels}
+Related web entities: ${webEntities}
+
+IMPORTANT: Your response MUST follow this exact format:
+TITLE: [An eBay-optimized title, max 80 characters, keyword-rich]
+CATEGORY_ID: [The most appropriate eBay leaf category ID number, e.g. 31388 for Digital Cameras, 175673 for Network Switches, 171485 for Laptops. Use a real eBay category ID.]
+CATEGORY_NAME: [The eBay category name for that ID]
+BRAND: [The brand/manufacturer name, e.g. Cisco, Apple, Dell. Use "Unbranded" if truly generic.]
+TYPE: [The specific product type as used in eBay item specifics for this category, e.g. "Managed Switch", "Laptop", "Router". Be specific.]
+MPN: [The model/part number if identifiable from the product info, otherwise "Does Not Apply"]
+HTML:
+[The full HTML description code]`;
+    }
+
+    function parseListingResponse(raw, fallback) {
+      let title = fallback, html = raw, categoryId = '', categoryName = '';
+      let brand = '', type = '', mpn = '';
+      const tm = raw.match(/^TITLE:\s*(.+)/m);
+      if (tm) title = tm[1].trim();
+      const cm = raw.match(/^CATEGORY_ID:\s*(.+)/m);
+      if (cm) categoryId = cm[1].trim();
+      const cn = raw.match(/^CATEGORY_NAME:\s*(.+)/m);
+      if (cn) categoryName = cn[1].trim();
+      const bm = raw.match(/^BRAND:\s*(.+)/m);
+      if (bm) brand = bm[1].trim();
+      const tp = raw.match(/^TYPE:\s*(.+)/m);
+      if (tp) type = tp[1].trim();
+      const mp = raw.match(/^MPN:\s*(.+)/m);
+      if (mp) mpn = mp[1].trim();
+      const hm = raw.match(/HTML:\s*\n?([\s\S]+)/);
+      if (hm) html = hm[1].trim();
+      html = html.replace(/^```html?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      return { title, html, categoryId, categoryName, brand, type, mpn };
+    }
+
+    // ═══════════════════════════════════════
+    //  Verify with Claude
+    // ═══════════════════════════════════════
+    const CLAUDE_URL = '/api/claude/chat';
+
+    async function verifyWithClaude(ci) {
+      const meta = clusterData[ci];
+      if (!meta.generatedTitle || !meta.generatedHtml) {
+        alert('Generate a listing first before verifying.');
+        return;
+      }
+
+      meta.status = 'verifying';
+      updateRow(ci);
+
+      const productInfo = [
+        meta.productName || '',
+        meta.brand ? `Brand: ${meta.brand}` : '',
+        meta.suggestedMpn ? `MPN: ${meta.suggestedMpn}` : '',
+        meta.topLabels.length ? `Labels: ${meta.topLabels.map(([d]) => d).join(', ')}` : '',
+        meta.topWeb.length ? `Web entities: ${meta.topWeb.map(([d]) => d).join(', ')}` : '',
+      ].filter(Boolean).join('\n');
+
+      const userTemplate = window._exampleTemplate || '';
+      const templateContext = userTemplate
+        ? `\nIMPORTANT — USER TEMPLATE REFERENCE:\nThe user has a custom HTML template saved for their listings. When reviewing and enriching, ensure the listing still follows the structure, styling, and visual design of this template. Do NOT deviate from the template layout. Here is the template:\n${userTemplate}\n`
+        : '';
+
+      const prompt = `You are a senior eBay listing quality reviewer and SEO specialist. You have been given an existing eBay listing that was generated by another AI. Your job is to VERIFY and ENRICH it — not rewrite it from scratch.
+
+PRODUCT: ${productInfo}
+CATEGORY: ${meta.suggestedCategoryName || 'Unknown'} (ID: ${meta.suggestedCategoryId || 'Unknown'})
+${templateContext}
+EXISTING TITLE:
+${meta.generatedTitle}
+
+EXISTING HTML DESCRIPTION:
+${meta.generatedHtml}
+
+YOUR TASKS:
+1. TITLE: Review the title. Fix any factual errors about the product. Improve keyword optimization for eBay Cassini search if possible. Keep it under 80 characters. If the title is already good, keep it as-is or make minor improvements only.
+2. DESCRIPTION: Review the HTML description. Fix any factual inaccuracies about this specific product (specs, features, compatibility). Add any missing important details or keywords. Improve readability and buyer appeal if needed. Keep the same HTML structure and styling — do not change the layout, colors, or CSS.${userTemplate ? ' The listing must continue to match the user\'s saved HTML template design.' : ''} Only modify the text content where it genuinely needs improvement.
+3. If something is already accurate and well-written, KEEP IT. Do not change things just to change them.
+
+IMPORTANT: Your response MUST follow this exact format:
+TITLE: [The verified/enriched title, max 80 chars]
+CATEGORY_ID: ${meta.suggestedCategoryId || '[ID]'}
+CATEGORY_NAME: ${meta.suggestedCategoryName || '[Name]'}
+BRAND: ${meta.suggestedBrand || meta.brand || '[Brand]'}
+TYPE: ${meta.suggestedType || '[Type]'}
+MPN: ${meta.suggestedMpn || '[MPN]'}
+HTML:
+[The verified/enriched HTML description]`;
+
+      try {
+        const resp = await apiFetch(CLAUDE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: 'You are a senior eBay listing quality reviewer. You verify and enrich existing listings — you do not rewrite them from scratch. Only change what genuinely needs improvement. Output only the requested content, no commentary.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.4,
+            max_tokens: 4096
+          })
+        });
+        if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `Claude error ${resp.status}`); }
+        const data = await resp.json();
+        const raw = data.choices[0].message.content.trim();
+        const { title, html, brand, type, mpn } = parseListingResponse(raw, meta.generatedTitle);
+
+        meta.generatedTitle = title;
+        meta.generatedHtml = html;
+        if (brand) meta.suggestedBrand = brand;
+        if (type) meta.suggestedType = type;
+        if (mpn) meta.suggestedMpn = mpn;
+        meta._claudeVerified = true;
+        meta.status = 'ready';
+      } catch (err) {
+        meta.status = 'ready';
+        alert(`Verification error: ${err.message}`);
+      }
+      updateRow(ci);
+      await syncDraft(ci);
+    }
+
+    // ═══════════════════════════════════════
+    //  Modal
+    // ═══════════════════════════════════════
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (editorOverlay.classList.contains('open')) { closeEditor(); }
+        else { closeModal(); }
+      }
+    });
+
+    function closeModal() {
+      modalOverlay.classList.remove('open');
+      currentModalIndex = -1;
+    }
+
+    // ═══════════════════════════════════════
+    //  Image Editor
+    // ═══════════════════════════════════════
+    let editorState = null;
+    const editorOverlay = document.getElementById('editorOverlay');
+
+    document.getElementById('editorClose').addEventListener('click', closeEditor);
+    editorOverlay.addEventListener('click', (e) => { if (e.target === editorOverlay) closeEditor(); });
+
+    function closeEditor() {
+      editorOverlay.classList.remove('open');
+      editorState = null;
+    }
+
+    function openImageEditor(ci, itemIdx) {
+      const item = clusterData[ci].cluster[itemIdx];
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 600, maxH = 500;
+        let dw = img.naturalWidth, dh = img.naturalHeight;
+        const scale = Math.min(maxW / dw, maxH / dh, 1);
+        dw = Math.round(dw * scale);
+        dh = Math.round(dh * scale);
+
+        editorState = {
+          ci, itemIdx,
+          sourceImg: img,
+          naturalW: img.naturalWidth, naturalH: img.naturalHeight,
+          displayW: dw, displayH: dh, scale,
+          mode: null,
+          crop: null,
+          bgColor: '#ffffff',
+          brightness: 100, contrast: 100,
+        };
+
+        renderEditor();
+        editorOverlay.classList.add('open');
+      };
+      img.src = item.img.dataUrl;
+    }
+
+    function renderEditor() {
+      const s = editorState;
+      const toolbar = document.getElementById('editorToolbar');
+      const canvasWrap = document.getElementById('editorCanvasWrap');
+      const options = document.getElementById('editorOptions');
+      const footer = document.getElementById('editorFooter');
+
+      toolbar.className = 'editor-toolbar';
+      toolbar.innerHTML = `
+        <button id="edModeCrop" class="${s.mode === 'crop' ? 'active' : ''}">&#9986; Crop</button>
+        <button id="edModeSquare" class="${s.mode === 'square' ? 'active' : ''}">&#9632; Make Square</button>
+        <button id="edModeAdjust" class="${s.mode === 'adjust' ? 'active' : ''}">&#9788; Adjust</button>
+        <button id="edRotate">&#8635; Rotate 90&deg;</button>
+      `;
+
+      canvasWrap.className = 'editor-canvas-wrap';
+      canvasWrap.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      canvas.id = 'editorCanvas';
+      canvas.width = s.displayW;
+      canvas.height = s.displayH;
+      canvasWrap.appendChild(canvas);
+
+      drawEditorCanvas();
+
+      options.className = 'editor-options';
+      if (s.mode === 'crop') {
+        options.innerHTML = `
+          <button class="btn btn-primary btn-xs" id="edApplyCrop">Apply Crop</button>
+          <span style="font-size:11px;color:#8b8fa3;">Drag on image to select region</span>
+        `;
+      } else if (s.mode === 'square') {
+        options.innerHTML = `
+          <label>Background: <input type="color" id="edBgColor" value="${s.bgColor}"></label>
+          <button class="btn btn-primary btn-xs" id="edApplySquare">Pad to Square</button>
+          <button class="btn btn-secondary btn-xs" id="edCropSquare">Crop to Square</button>
+        `;
+      } else if (s.mode === 'adjust') {
+        options.innerHTML = `
+          <label>Brightness: <input type="range" id="edBrightness" min="50" max="200" value="${s.brightness}"> <span id="edBrVal">${s.brightness}%</span></label>
+          <label>Contrast: <input type="range" id="edContrast" min="50" max="200" value="${s.contrast}"> <span id="edCVal">${s.contrast}%</span></label>
+        `;
+      } else {
+        options.innerHTML = '';
+      }
+
+      footer.innerHTML = `
+        <button class="btn btn-green btn-sm" id="edSave">Save Changes</button>
+        <button class="btn btn-secondary btn-sm" id="edCancel">Cancel</button>
+        <span class="spacer"></span>
+        <span style="font-size:11px;color:#8b8fa3;">${s.naturalW} &times; ${s.naturalH}px</span>
+      `;
+
+      attachEditorEvents();
+    }
+
+    function drawEditorCanvas() {
+      const s = editorState;
+      const canvas = document.getElementById('editorCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      ctx.filter = `brightness(${s.brightness}%) contrast(${s.contrast}%)`;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(s.sourceImg, 0, 0, s.displayW, s.displayH);
+      ctx.filter = 'none';
+
+      if (s.mode === 'crop' && s.crop) {
+        const c = s.crop;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.fillRect(0, 0, canvas.width, c.y);
+        ctx.fillRect(0, c.y + c.h, canvas.width, canvas.height - c.y - c.h);
+        ctx.fillRect(0, c.y, c.x, c.h);
+        ctx.fillRect(c.x + c.w, c.y, canvas.width - c.x - c.w, c.h);
+
+        ctx.strokeStyle = '#4f6ef7';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 3]);
+        ctx.strokeRect(c.x, c.y, c.w, c.h);
+        ctx.setLineDash([]);
+
+        const hs = 6;
+        ctx.fillStyle = '#4f6ef7';
+        [[c.x, c.y], [c.x + c.w, c.y], [c.x, c.y + c.h], [c.x + c.w, c.y + c.h],
+         [c.x + c.w / 2, c.y], [c.x + c.w / 2, c.y + c.h],
+         [c.x, c.y + c.h / 2], [c.x + c.w, c.y + c.h / 2]
+        ].forEach(([cx, cy]) => ctx.fillRect(cx - hs / 2, cy - hs / 2, hs, hs));
+      }
+    }
+
+    function normalizeCrop() {
+      const c = editorState.crop;
+      if (!c) return;
+      if (c.w < 0) { c.x += c.w; c.w = Math.abs(c.w); }
+      if (c.h < 0) { c.y += c.h; c.h = Math.abs(c.h); }
+      c.x = Math.max(0, c.x);
+      c.y = Math.max(0, c.y);
+      c.w = Math.min(c.w, editorState.displayW - c.x);
+      c.h = Math.min(c.h, editorState.displayH - c.y);
+    }
+
+    function attachEditorEvents() {
+      const s = editorState;
+
+      document.getElementById('edModeCrop')?.addEventListener('click', () => {
+        s.mode = s.mode === 'crop' ? null : 'crop';
+        s.crop = null;
+        renderEditor();
+      });
+      document.getElementById('edModeSquare')?.addEventListener('click', () => {
+        s.mode = s.mode === 'square' ? null : 'square';
+        renderEditor();
+      });
+      document.getElementById('edModeAdjust')?.addEventListener('click', () => {
+        s.mode = s.mode === 'adjust' ? null : 'adjust';
+        renderEditor();
+      });
+      document.getElementById('edRotate')?.addEventListener('click', () => applyRotation());
+
+      // Crop drag
+      if (s.mode === 'crop') {
+        const canvas = document.getElementById('editorCanvas');
+        let dragging = false, startX, startY;
+
+        const getPos = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const sx = canvas.width / rect.width;
+          const sy = canvas.height / rect.height;
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+          return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy };
+        };
+
+        const onStart = (e) => {
+          e.preventDefault();
+          const pos = getPos(e);
+          startX = pos.x; startY = pos.y;
+          dragging = true;
+          s.crop = { x: startX, y: startY, w: 0, h: 0 };
+        };
+        const onMove = (e) => {
+          if (!dragging) return;
+          e.preventDefault();
+          const pos = getPos(e);
+          s.crop.w = pos.x - startX;
+          s.crop.h = pos.y - startY;
+          drawEditorCanvas();
+        };
+        const onEnd = () => { dragging = false; normalizeCrop(); };
+
+        canvas.addEventListener('mousedown', onStart);
+        canvas.addEventListener('mousemove', onMove);
+        canvas.addEventListener('mouseup', onEnd);
+        canvas.addEventListener('mouseleave', onEnd);
+        canvas.addEventListener('touchstart', onStart, { passive: false });
+        canvas.addEventListener('touchmove', onMove, { passive: false });
+        canvas.addEventListener('touchend', onEnd);
+      }
+
+      document.getElementById('edApplyCrop')?.addEventListener('click', () => {
+        if (!s.crop || s.crop.w < 10 || s.crop.h < 10) { alert('Draw a crop region first.'); return; }
+        applyCrop();
+      });
+
+      document.getElementById('edBgColor')?.addEventListener('input', (e) => { s.bgColor = e.target.value; });
+      document.getElementById('edApplySquare')?.addEventListener('click', () => applyMakeSquare('pad'));
+      document.getElementById('edCropSquare')?.addEventListener('click', () => applyMakeSquare('crop'));
+
+      document.getElementById('edBrightness')?.addEventListener('input', (e) => {
+        s.brightness = parseInt(e.target.value);
+        document.getElementById('edBrVal').textContent = s.brightness + '%';
+        drawEditorCanvas();
+      });
+      document.getElementById('edContrast')?.addEventListener('input', (e) => {
+        s.contrast = parseInt(e.target.value);
+        document.getElementById('edCVal').textContent = s.contrast + '%';
+        drawEditorCanvas();
+      });
+
+      document.getElementById('edSave')?.addEventListener('click', saveEditorChanges);
+      document.getElementById('edCancel')?.addEventListener('click', closeEditor);
+    }
+
+    function replaceEditorSource(dataUrl) {
+      const s = editorState;
+      const newImg = new Image();
+      newImg.onload = () => {
+        s.sourceImg = newImg;
+        s.naturalW = newImg.naturalWidth;
+        s.naturalH = newImg.naturalHeight;
+        const maxW = 600, maxH = 500;
+        const scale = Math.min(maxW / s.naturalW, maxH / s.naturalH, 1);
+        s.displayW = Math.round(s.naturalW * scale);
+        s.displayH = Math.round(s.naturalH * scale);
+        s.scale = scale;
+        s.crop = null;
+        s.mode = null;
+        renderEditor();
+      };
+      newImg.src = dataUrl;
+    }
+
+    function applyCrop() {
+      const s = editorState;
+      const c = s.crop;
+      const sx = c.x / s.scale, sy = c.y / s.scale;
+      const sw = c.w / s.scale, sh = c.h / s.scale;
+
+      const tmp = document.createElement('canvas');
+      tmp.width = Math.round(sw);
+      tmp.height = Math.round(sh);
+      const ctx = tmp.getContext('2d');
+      ctx.drawImage(s.sourceImg, sx, sy, sw, sh, 0, 0, tmp.width, tmp.height);
+      replaceEditorSource(tmp.toDataURL('image/png'));
+    }
+
+    function applyMakeSquare(mode) {
+      const s = editorState;
+      const tmp = document.createElement('canvas');
+      const ctx = tmp.getContext('2d');
+
+      if (mode === 'pad') {
+        const side = Math.max(s.naturalW, s.naturalH);
+        tmp.width = side; tmp.height = side;
+        ctx.fillStyle = s.bgColor;
+        ctx.fillRect(0, 0, side, side);
+        const ox = Math.round((side - s.naturalW) / 2);
+        const oy = Math.round((side - s.naturalH) / 2);
+        ctx.drawImage(s.sourceImg, ox, oy, s.naturalW, s.naturalH);
+      } else {
+        const side = Math.min(s.naturalW, s.naturalH);
+        tmp.width = side; tmp.height = side;
+        const sx = Math.round((s.naturalW - side) / 2);
+        const sy = Math.round((s.naturalH - side) / 2);
+        ctx.drawImage(s.sourceImg, sx, sy, side, side, 0, 0, side, side);
+      }
+      replaceEditorSource(tmp.toDataURL('image/png'));
+    }
+
+    function applyRotation() {
+      const s = editorState;
+      const tmp = document.createElement('canvas');
+      tmp.width = s.naturalH;
+      tmp.height = s.naturalW;
+      const ctx = tmp.getContext('2d');
+      ctx.translate(tmp.width / 2, tmp.height / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(s.sourceImg, -s.naturalW / 2, -s.naturalH / 2);
+      replaceEditorSource(tmp.toDataURL('image/png'));
+    }
+
+    function saveEditorChanges() {
+      const s = editorState;
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = s.naturalW;
+      finalCanvas.height = s.naturalH;
+      const ctx = finalCanvas.getContext('2d');
+      ctx.filter = `brightness(${s.brightness}%) contrast(${s.contrast}%)`;
+      ctx.drawImage(s.sourceImg, 0, 0, s.naturalW, s.naturalH);
+      ctx.filter = 'none';
+
+      const mimeType = 'image/jpeg';
+      const dataUrl = finalCanvas.toDataURL(mimeType, 0.92);
+      const base64 = dataUrl.split(',')[1];
+
+      const byteString = atob(base64);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+
+      const item = clusterData[s.ci].cluster[s.itemIdx];
+      const origName = item.img.file.name.replace(/\.[^.]+$/, '') + '_edited.jpg';
+      const newFile = new File([ab], origName, { type: mimeType });
+
+      item.img.file = newFile;
+      item.img.dataUrl = dataUrl;
+      item.img.base64 = base64;
+
+      const globalIdx = item.index;
+      if (globalIdx !== undefined && imageFiles[globalIdx]) {
+        imageFiles[globalIdx].file = newFile;
+        imageFiles[globalIdx].dataUrl = dataUrl;
+        imageFiles[globalIdx].base64 = base64;
+      }
+
+      updateRow(s.ci);
+      closeEditor();
+      openModal(s.ci);
+    }
+
+    async function openModal(ci) {
+      const meta = clusterData[ci];
+      currentModalIndex = ci;
+      modalTitle.textContent = meta.generatedTitle || meta.productName;
+
+      const policies = await ensurePolicies();
+      const shipOptions = (policies.shipping || []).map(s =>
+        `<option value="${s.id}"${s.default ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
+      ).join('');
+      const retOptions = (policies.returnPolicies || []).map(r =>
+        `<option value="${r.id}"${r.default ? ' selected' : ''}>${escapeHtml(r.name)}</option>`
+      ).join('');
+
+      // Images
+      const isEditable = meta.status !== 'listed' && meta.status !== 'rejected';
+      const imagesHtml = meta.cluster.map((item, idx) =>
+        isEditable
+          ? `<div class="modal-thumb-wrap" draggable="true" data-drag-idx="${idx}">
+               <img class="modal-thumb" src="${item.img.dataUrl}" alt="">
+               <button class="modal-thumb-edit" data-edit-idx="${idx}" title="Edit image">&#9998;</button>
+               <button class="modal-thumb-remove" data-remove-idx="${idx}" title="Remove">&times;</button>
+             </div>`
+          : `<img class="modal-thumb" src="${item.img.dataUrl}" alt="">`
+      ).join('') + (isEditable ? `<div class="modal-add-photo" id="modalAddPhoto"><span>+</span><small>ADD</small></div><input type="file" id="modalPhotoInput" accept="image/*" multiple style="display:none;">` : '');
+
+      // Title block
+      let titleBlockHtml = '';
+      if (meta.generatedTitle) {
+        titleBlockHtml = `
+          <div class="modal-title-block">
+            <div class="modal-title-label">eBay Title</div>
+            <div class="modal-title-row">
+              <input type="text" class="modal-title-text" id="modalTitleInput" value="${escapeHtml(meta.generatedTitle)}" maxlength="80">
+              <span class="modal-title-charcount" id="modalTitleCount">${meta.generatedTitle.length}/80</span>
+              <button class="copy-btn" id="modalCopyTitle">Copy</button>
+            </div>
+          </div>
+        `;
+      }
+
+      // Description block
+      let descBlockHtml = '';
+      if (meta.generatedHtml) {
+        descBlockHtml = `
+          <div class="modal-desc-block">
+            <div class="modal-desc-tabs">
+              <button class="modal-desc-tab active" data-tab="preview">Preview</button>
+              <button class="modal-desc-tab" data-tab="edit">Edit HTML</button>
+              <span style="flex:1;"></span>
+              <button class="copy-btn" style="margin:6px 8px;" id="modalCopyHtml">Copy HTML</button>
+            </div>
+            <div class="modal-desc-preview" id="modalDescPreview">${meta.generatedHtml}</div>
+            <div class="modal-desc-edit" id="modalDescEdit"><textarea id="modalDescTextarea">${escapeHtml(meta.generatedHtml)}</textarea></div>
+          </div>
+        `;
+      }
+
+      // Fields
+      const fieldsHtml = `
+        <div class="modal-fields">
+          <div class="modal-field">
+            <label>Category</label>
+            <div class="cat-autocomplete" id="catAutocomplete">
+              <div class="cat-selected" id="catSelected" style="${meta.suggestedCategoryId ? '' : 'display:none'}">
+                <span class="cat-name" id="catSelectedName">${escapeHtml(meta.suggestedCategoryName || '')}</span>
+                <span class="cat-id" id="catSelectedId">${escapeHtml(meta.suggestedCategoryId || '')}</span>
+                <button class="cat-clear" id="catClearBtn">&times;</button>
+              </div>
+              <input type="text" id="modalCatSearch" placeholder="Search eBay categories..." autocomplete="off">
+              <input type="hidden" id="modalCatId" value="${escapeHtml(meta.suggestedCategoryId || '')}">
+              <input type="hidden" id="modalCatName" value="${escapeHtml(meta.suggestedCategoryName || '')}">
+              <div class="cat-dropdown" id="catDropdown"></div>
+            </div>
+          </div>
+          <div id="aspectsContainer" style="grid-column: 1 / -1;"></div>
+          <div class="modal-field">
+            <label>Custom Label (SKU)</label>
+            <input type="text" id="modalSku" value="${escapeHtml(meta._sku || '')}" placeholder="e.g. ABC-12345" maxlength="50">
+          </div>
+          <div class="modal-field">
+            <label>Quantity</label>
+            <input type="number" id="modalQty" value="1" min="1" step="1">
+          </div>
+          <div class="modal-field">
+            <label>Shipping Policy</label>
+            <select id="modalShipPolicy">${shipOptions}</select>
+          </div>
+          <div class="modal-field">
+            <label>Return Policy</label>
+            <select id="modalRetPolicy">${retOptions}</select>
+          </div>
+        </div>
+      `;
+
+      // Offers & Promotions section
+      const offersHtml = (meta.status !== 'listed' && meta.status !== 'rejected') ? `
+        <div class="offers-section">
+          <div class="offers-section-title">Offers & Promotions</div>
+          <div class="offers-grid">
+            <div class="offer-toggle">
+              <label><input type="checkbox" id="modalBestOffer" ${meta._bestOfferEnabled ? 'checked' : ''}> Allow Best Offers</label>
+            </div>
+            <div class="offer-toggle">
+              <label><input type="checkbox" id="modalAutoPay" ${meta._autoPay !== false ? 'checked' : ''}> Require Immediate Payment</label>
+            </div>
+            <div class="offer-sub-fields ${meta._bestOfferEnabled ? 'open' : ''}" id="bestOfferSubFields">
+              <div class="modal-field">
+                <label>Auto-Accept Price ($)</label>
+                <input type="number" id="modalAutoAcceptPrice" value="${meta._autoAcceptPrice || ''}" min="0" step="0.01" placeholder="Accept offers at or above">
+                <div class="offer-hint">Offers at or above this price are automatically accepted</div>
+              </div>
+              <div class="modal-field">
+                <label>Auto-Decline Price ($)</label>
+                <input type="number" id="modalMinBestOfferPrice" value="${meta._minBestOfferPrice || ''}" min="0" step="0.01" placeholder="Decline offers below">
+                <div class="offer-hint">Offers below this price are automatically declined</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : '';
+
+      modalBody.innerHTML = `
+        <div class="modal-images">${imagesHtml}</div>
+        ${titleBlockHtml}
+        ${descBlockHtml}
+        ${fieldsHtml}
+        ${offersHtml}
+      `;
+
+      // Footer
+      if (meta.status === 'listed') {
+        modalFooter.innerHTML = `
+          <span class="modal-status">Listed as <a href="https://www.ebay.com/itm/${meta.ebayItemId}" target="_blank">#${meta.ebayItemId}</a></span>
+          <span class="spacer"></span>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>
+        `;
+      } else if (meta.status === 'ready') {
+        const modalPublishBtn = window._userRole !== 'operator'
+          ? `<button class="btn btn-green btn-sm" id="modalListBtn">Publish</button>`
+          : '';
+        modalFooter.innerHTML = `
+          ${modalPublishBtn}
+          <button class="btn btn-red btn-xs" id="modalRejectBtn">Reject</button>
+          <span class="modal-status" id="modalStatus"></span>
+          <span class="spacer"></span>
+          <button class="btn btn-secondary btn-sm" id="modalSaveBtn">Save & Close</button>
+        `;
+      } else {
+        modalFooter.innerHTML = `
+          <span class="spacer"></span>
+          <button class="btn btn-secondary btn-sm" onclick="closeModal()">Close</button>
+        `;
+      }
+
+      modalOverlay.classList.add('open');
+
+      // Attach modal events
+      // Tab switching
+      modalBody.querySelectorAll('.modal-desc-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          modalBody.querySelectorAll('.modal-desc-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          const mode = tab.dataset.tab;
+          const prev = document.getElementById('modalDescPreview');
+          const edit = document.getElementById('modalDescEdit');
+          const textarea = document.getElementById('modalDescTextarea');
+          if (prev) prev.style.display = mode === 'preview' ? 'block' : 'none';
+          if (edit) edit.style.display = mode === 'edit' ? 'block' : 'none';
+          // When switching to preview, refresh from textarea edits
+          if (mode === 'preview' && prev && textarea) {
+            prev.innerHTML = textarea.value;
+          }
+        });
+      });
+
+      // Title character counter
+      const titleInput = document.getElementById('modalTitleInput');
+      const titleCount = document.getElementById('modalTitleCount');
+      if (titleInput && titleCount) {
+        titleInput.addEventListener('input', () => {
+          titleCount.textContent = `${titleInput.value.length}/80`;
+          titleCount.style.color = titleInput.value.length > 80 ? '#ef4444' : '#8b8fa3';
+        });
+      }
+
+      // Copy buttons
+      const copyTitle = document.getElementById('modalCopyTitle');
+      if (copyTitle) copyTitle.addEventListener('click', () => {
+        const val = document.getElementById('modalTitleInput')?.value || meta.generatedTitle;
+        copyText(copyTitle, val);
+      });
+
+      const copyHtml = document.getElementById('modalCopyHtml');
+      if (copyHtml) copyHtml.addEventListener('click', () => {
+        const val = document.getElementById('modalDescTextarea')?.value || meta.generatedHtml;
+        copyText(copyHtml, val);
+      });
+
+      // Category autocomplete
+      initCategoryAutocomplete(meta);
+
+      // Load item aspects if category already selected
+      if (meta.suggestedCategoryId) {
+        loadItemAspects(meta.suggestedCategoryId, meta);
+      }
+
+      // Best Offer toggle
+      const bestOfferCb = document.getElementById('modalBestOffer');
+      const bestOfferSub = document.getElementById('bestOfferSubFields');
+      if (bestOfferCb && bestOfferSub) {
+        bestOfferCb.addEventListener('change', () => {
+          bestOfferSub.classList.toggle('open', bestOfferCb.checked);
+          if (!bestOfferCb.checked) {
+            const aa = document.getElementById('modalAutoAcceptPrice');
+            const md = document.getElementById('modalMinBestOfferPrice');
+            if (aa) aa.value = '';
+            if (md) md.value = '';
+          }
+        });
+      }
+
+      // Add photos button
+      const addPhotoBtn = document.getElementById('modalAddPhoto');
+      const photoInput = document.getElementById('modalPhotoInput');
+      if (addPhotoBtn && photoInput) {
+        addPhotoBtn.addEventListener('click', () => photoInput.click());
+        photoInput.addEventListener('change', async (e) => {
+          const files = Array.from(e.target.files);
+          if (!files.length) return;
+          addPhotoBtn.innerHTML = '<span class="spinner spinner-sm"></span>';
+          for (const file of files) {
+            const dataUrl = await readFileAsDataUrl(file);
+            const base64 = dataUrl.split(',')[1];
+            meta.cluster.push({
+              index: imageFiles.length,
+              img: { file, dataUrl, base64 },
+              response: {},
+            });
+            imageFiles.push({ file, dataUrl, base64 });
+          }
+          photoInput.value = '';
+          updateRow(ci);
+          openModal(ci); // re-render modal with new images
+        });
+      }
+
+      // Remove photo buttons
+      modalBody.querySelectorAll('.modal-thumb-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.removeIdx);
+          if (meta.cluster.length <= 1) { alert('Must keep at least one photo.'); return; }
+          meta.cluster.splice(idx, 1);
+          updateRow(ci);
+          openModal(ci); // re-render modal
+        });
+      });
+
+      // Edit photo buttons
+      modalBody.querySelectorAll('.modal-thumb-edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.editIdx);
+          openImageEditor(ci, idx);
+        });
+      });
+
+      // Drag-and-drop reorder photos
+      let dragFromIdx = null;
+      modalBody.querySelectorAll('.modal-thumb-wrap[draggable]').forEach(wrap => {
+        wrap.addEventListener('dragstart', (e) => {
+          dragFromIdx = parseInt(wrap.dataset.dragIdx);
+          wrap.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        wrap.addEventListener('dragend', () => {
+          wrap.classList.remove('dragging');
+          modalBody.querySelectorAll('.modal-thumb-wrap').forEach(w => {
+            w.classList.remove('drag-over-left', 'drag-over-right');
+          });
+        });
+        wrap.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const toIdx = parseInt(wrap.dataset.dragIdx);
+          if (toIdx === dragFromIdx) return;
+          modalBody.querySelectorAll('.modal-thumb-wrap').forEach(w => {
+            w.classList.remove('drag-over-left', 'drag-over-right');
+          });
+          wrap.classList.add(toIdx < dragFromIdx ? 'drag-over-left' : 'drag-over-right');
+        });
+        wrap.addEventListener('dragleave', () => {
+          wrap.classList.remove('drag-over-left', 'drag-over-right');
+        });
+        wrap.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const toIdx = parseInt(wrap.dataset.dragIdx);
+          if (dragFromIdx === null || dragFromIdx === toIdx) return;
+          const [moved] = meta.cluster.splice(dragFromIdx, 1);
+          meta.cluster.splice(toIdx, 0, moved);
+          updateRow(ci);
+          openModal(ci);
+        });
+      });
+
+      // Save & Close — save modal field edits back to clusterData
+      const saveBtn = document.getElementById('modalSaveBtn');
+      if (saveBtn) saveBtn.addEventListener('click', () => {
+        saveModalFields(ci);
+        closeModal();
+      });
+
+      // List on eBay from modal
+      const modalListBtn = document.getElementById('modalListBtn');
+      if (modalListBtn) modalListBtn.addEventListener('click', async () => {
+        saveModalFields(ci);
+        closeModal();
+        await listOnEbay(ci);
+      });
+
+      // Reject from modal
+      const modalRejectBtn = document.getElementById('modalRejectBtn');
+      if (modalRejectBtn) modalRejectBtn.addEventListener('click', () => {
+        rejectListing(ci);
+        closeModal();
+      });
+    }
+
+    function saveModalFields(ci) {
+      const meta = clusterData[ci];
+      const titleInput = document.getElementById('modalTitleInput');
+      const descTextarea = document.getElementById('modalDescTextarea');
+      const catId = document.getElementById('modalCatId');
+      const sku = document.getElementById('modalSku');
+      const qty = document.getElementById('modalQty');
+      const ship = document.getElementById('modalShipPolicy');
+      const ret = document.getElementById('modalRetPolicy');
+
+      if (titleInput) meta.generatedTitle = titleInput.value.trim();
+      if (descTextarea) meta.generatedHtml = descTextarea.value.trim();
+      if (catId) meta.suggestedCategoryId = catId.value.trim();
+      const catName = document.getElementById('modalCatName');
+      if (catName && catName.value.trim()) meta.suggestedCategoryName = catName.value.trim();
+      meta._itemAspects = collectAspects();
+      // Keep backwards compat fields in sync
+      meta.suggestedBrand = meta._itemAspects['Brand'] || '';
+      meta.suggestedType = meta._itemAspects['Type'] || '';
+      meta.suggestedMpn = meta._itemAspects['MPN'] || '';
+      if (sku) meta._sku = sku.value.trim();
+      if (qty) meta._modalQty = qty.value;
+      if (ship) meta._shippingPolicyId = ship.value;
+      if (ret) meta._returnPolicyId = ret.value;
+
+      // Offers & Promotions
+      const bestOfferCb = document.getElementById('modalBestOffer');
+      const autoPayCb = document.getElementById('modalAutoPay');
+      const autoAccept = document.getElementById('modalAutoAcceptPrice');
+      const minOffer = document.getElementById('modalMinBestOfferPrice');
+      if (bestOfferCb) meta._bestOfferEnabled = bestOfferCb.checked;
+      if (autoPayCb) meta._autoPay = autoPayCb.checked;
+      if (autoAccept) meta._autoAcceptPrice = autoAccept.value.trim();
+      if (minOffer) meta._minBestOfferPrice = minOffer.value.trim();
+
+      updateRow(ci);
+      syncDraft(ci);
+    }
+
+    // ── Category autocomplete ──
+    async function initCategoryAutocomplete(meta) {
+      const searchInput = document.getElementById('modalCatSearch');
+      const dropdown = document.getElementById('catDropdown');
+      const selectedDiv = document.getElementById('catSelected');
+      const selectedName = document.getElementById('catSelectedName');
+      const selectedId = document.getElementById('catSelectedId');
+      const clearBtn = document.getElementById('catClearBtn');
+      const hiddenId = document.getElementById('modalCatId');
+      const hiddenName = document.getElementById('modalCatName');
+      if (!searchInput || !dropdown) return;
+
+      let debounceTimer = null;
+
+      function selectCategory(id, name, autoFill = false) {
+        hiddenId.value = id;
+        hiddenName.value = name;
+        selectedName.textContent = name;
+        selectedId.textContent = id;
+        selectedDiv.style.display = 'flex';
+        searchInput.value = '';
+        dropdown.classList.remove('open');
+        loadItemAspects(id, meta, autoFill);
+      }
+
+      clearBtn.addEventListener('click', () => {
+        hiddenId.value = '';
+        hiddenName.value = '';
+        selectedDiv.style.display = 'none';
+        searchInput.focus();
+      });
+
+      searchInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const q = searchInput.value.trim();
+        if (q.length < 2) { dropdown.classList.remove('open'); return; }
+        debounceTimer = setTimeout(() => fetchCategories(q), 350);
+      });
+
+      async function fetchCategories(q) {
+        dropdown.innerHTML = '<div class="cat-dropdown-loading">Searching...</div>';
+        dropdown.classList.add('open');
+        try {
+          const resp = await apiFetch(`/api/ebay/category-suggestions?q=${encodeURIComponent(q)}`);
+          const data = await resp.json();
+          if (!data.success || !data.suggestions?.length) {
+            dropdown.innerHTML = '<div class="cat-dropdown-loading">No categories found</div>';
+            return;
+          }
+          dropdown.innerHTML = data.suggestions.map(s =>
+            `<div class="cat-dropdown-item" data-id="${escapeHtml(s.id)}" data-name="${escapeHtml(s.name)}">
+              <div class="cat-item-name">${escapeHtml(s.name)}</div>
+              <div class="cat-item-path">${escapeHtml(s.path)}</div>
+            </div>`
+          ).join('');
+          dropdown.querySelectorAll('.cat-dropdown-item').forEach(item => {
+            item.addEventListener('click', () => {
+              selectCategory(item.dataset.id, item.dataset.name);
+            });
+          });
+        } catch (err) {
+          dropdown.innerHTML = `<div class="cat-dropdown-loading" style="color:#ef4444;">${err.message}</div>`;
+        }
+      }
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#catAutocomplete')) dropdown.classList.remove('open');
+      });
+
+      // Auto-search and auto-select best leaf category if none set
+      if (!meta.suggestedCategoryId) {
+        const q = meta.generatedTitle || meta.productName || '';
+        if (q) {
+          await fetchCategories(q);
+          // Auto-select the first (most relevant) leaf category and auto-fill specifics
+          const firstItem = dropdown.querySelector('.cat-dropdown-item');
+          if (firstItem) {
+            selectCategory(firstItem.dataset.id, firstItem.dataset.name, true);
+          }
+        }
+      }
+    }
+
+    // ── Item Aspects (dynamic per category) ──
+    let currentAspects = []; // tracks loaded aspects for save/list
+    let currentAspectsMeta = null; // reference to meta for autofill
+
+    async function loadItemAspects(categoryId, meta, autoFill = false) {
+      currentAspectsMeta = meta;
+      const container = document.getElementById('aspectsContainer');
+      if (!container) return;
+      container.innerHTML = '<div class="aspects-loading">Loading item specifics...</div>';
+      currentAspects = [];
+
+      try {
+        const resp = await apiFetch(`/api/ebay/item-aspects?category_id=${encodeURIComponent(categoryId)}`);
+        const data = await resp.json();
+        if (!data.success || !data.aspects?.length) {
+          container.innerHTML = '';
+          return;
+        }
+
+        // Sort: required first, then recommended, alphabetical within
+        const aspects = data.aspects.sort((a, b) => {
+          if (a.required !== b.required) return a.required ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        // Only show required + top recommended (limit to 20 to avoid clutter)
+        const requiredAspects = aspects.filter(a => a.required);
+        const recommendedAspects = aspects.filter(a => !a.required).slice(0, Math.max(0, 20 - requiredAspects.length));
+        const shownAspects = [...requiredAspects, ...recommendedAspects];
+        currentAspects = shownAspects;
+
+        // Saved values from previous edits
+        const saved = meta._itemAspects || {};
+        // Map old fields to aspect names for backwards compatibility
+        if (!saved['Brand'] && (meta.suggestedBrand || meta.brand)) saved['Brand'] = meta.suggestedBrand || meta.brand;
+        if (!saved['Type'] && meta.suggestedType) saved['Type'] = meta.suggestedType;
+        if (!saved['MPN'] && meta.suggestedMpn) saved['MPN'] = meta.suggestedMpn;
+
+        let html = '<div class="aspects-section-title">Item Specifics <button class="aspects-autofill-btn" id="autofillAspectsBtn">Auto-fill with AI</button></div>';
+        html += '<div class="modal-fields" style="margin-bottom:0;">';
+
+        for (const asp of shownAspects) {
+          const savedVal = saved[asp.name] || '';
+          const reqBadge = asp.required ? '<span class="req">*</span>' : '';
+          const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+          if (asp.values && asp.values.length > 0) {
+            // Combo: input with dropdown suggestions
+            const optionsHtml = asp.values.map(v =>
+              `<div class="aspect-option" data-val="${escapeHtml(v)}">${escapeHtml(v)}</div>`
+            ).join('');
+            html += `
+              <div class="modal-field">
+                <label>${escapeHtml(asp.name)}${reqBadge}</label>
+                <div class="aspect-combo">
+                  <input type="text" id="${fieldId}" value="${escapeHtml(savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" autocomplete="off" data-aspect="${escapeHtml(asp.name)}">
+                  <span class="aspect-arrow">&#9662;</span>
+                  <div class="aspect-list" id="${fieldId}_list">${optionsHtml}</div>
+                </div>
+              </div>`;
+          } else {
+            html += `
+              <div class="modal-field">
+                <label>${escapeHtml(asp.name)}${reqBadge}</label>
+                <input type="text" id="${fieldId}" value="${escapeHtml(savedVal)}" placeholder="${asp.required ? 'Required' : 'Optional'}" data-aspect="${escapeHtml(asp.name)}">
+              </div>`;
+          }
+        }
+        html += '</div>';
+        container.innerHTML = html;
+
+        // Wire up combo dropdowns
+        container.querySelectorAll('.aspect-combo').forEach(combo => {
+          const input = combo.querySelector('input');
+          const list = combo.querySelector('.aspect-list');
+          const allOptions = list.querySelectorAll('.aspect-option');
+
+          function filterOptions() {
+            const q = input.value.toLowerCase();
+            let visible = 0;
+            allOptions.forEach(opt => {
+              const match = opt.dataset.val.toLowerCase().includes(q);
+              opt.style.display = match ? '' : 'none';
+              if (match) visible++;
+            });
+            list.classList.toggle('open', visible > 0);
+          }
+
+          input.addEventListener('focus', () => { filterOptions(); });
+          input.addEventListener('input', () => { filterOptions(); });
+          allOptions.forEach(opt => {
+            opt.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              input.value = opt.dataset.val;
+              list.classList.remove('open');
+            });
+          });
+          input.addEventListener('blur', () => {
+            setTimeout(() => list.classList.remove('open'), 150);
+          });
+        });
+
+        // Wire up auto-fill button
+        const autofillBtn = document.getElementById('autofillAspectsBtn');
+        if (autofillBtn) {
+          autofillBtn.addEventListener('click', () => autofillAspects());
+        }
+
+        // Auto-fill if requested (first load with auto-selected category)
+        if (autoFill && !meta._itemAspects) {
+          autofillAspects();
+        }
+
+      } catch (err) {
+        container.innerHTML = `<div class="aspects-loading" style="color:#ef4444;">Failed to load item specifics</div>`;
+      }
+    }
+
+    function collectAspects() {
+      const result = {};
+      for (const asp of currentAspects) {
+        const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const el = document.getElementById(fieldId);
+        if (el && el.value.trim()) {
+          result[asp.name] = el.value.trim();
+        }
+      }
+      return result;
+    }
+
+    async function autofillAspects() {
+      const btn = document.getElementById('autofillAspectsBtn');
+      if (!btn || !currentAspectsMeta) return;
+      btn.disabled = true;
+      btn.textContent = 'Filling...';
+
+      const meta = currentAspectsMeta;
+      const productInfo = [
+        meta.generatedTitle || meta.productName || '',
+        meta.brand || '',
+        meta.productName || '',
+      ].filter(Boolean).join(' | ');
+
+      // Build the fields list for the prompt
+      const fieldsToFill = currentAspects.map(asp => {
+        const fieldId = `aspect_${asp.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const el = document.getElementById(fieldId);
+        const currentVal = el ? el.value.trim() : '';
+        return {
+          name: asp.name,
+          required: asp.required,
+          currentValue: currentVal,
+          allowedValues: asp.values && asp.values.length > 0 ? asp.values : null,
+        };
+      });
+
+      const prompt = `You are filling out eBay item specifics for a product listing. Your job is to pick the BEST matching value for each field.
+
+Product: ${productInfo}
+
+CRITICAL RULES:
+1. If a field has "allowedValues", you MUST pick EXACTLY one value from that list — copy it character-for-character. Do NOT invent values.
+2. If a field has no allowedValues (null), provide a reasonable text value based on the product.
+3. For required fields, ALWAYS provide a value. Use "Does Not Apply" only as a last resort for free-text fields.
+4. For fields with allowedValues where you're unsure, pick the closest matching option from the list.
+5. If a field already has a "currentValue", keep it unless you have a clearly better match.
+
+Fields:
+${JSON.stringify(fieldsToFill, null, 2)}
+
+Respond with ONLY a valid JSON object mapping field names to values. No explanation, no markdown, no code blocks. Just the JSON object.`;
+
+      try {
+        const resp = await apiFetch('/api/openai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.3,
+            max_completion_tokens: 2000,
+          }),
+        });
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || '';
+
+        // Parse JSON from response (handle markdown code blocks)
+        let jsonStr = content.trim();
+        if (jsonStr.startsWith('```')) {
+          jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+        }
+        const values = JSON.parse(jsonStr);
+
+        // Fill in the fields with validation against allowed values
+        for (const [name, value] of Object.entries(values)) {
+          const fieldId = `aspect_${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+          const el = document.getElementById(fieldId);
+          if (!el || !value) continue;
+
+          // Find the aspect definition to check allowed values
+          const asp = currentAspects.find(a => a.name === name);
+          let finalValue = String(value);
+
+          // If this field has allowed values, snap to the closest match
+          if (asp && asp.values && asp.values.length > 0) {
+            const exact = asp.values.find(v => v.toLowerCase() === finalValue.toLowerCase());
+            if (exact) {
+              finalValue = exact; // exact match (case-corrected)
+            } else {
+              // Find closest match by substring/includes
+              const partial = asp.values.find(v =>
+                v.toLowerCase().includes(finalValue.toLowerCase()) ||
+                finalValue.toLowerCase().includes(v.toLowerCase())
+              );
+              if (partial) {
+                finalValue = partial;
+              } else {
+                // Last resort: pick first allowed value rather than an invalid one
+                finalValue = asp.values[0];
+              }
+            }
+          }
+
+          // Fill if empty, or overwrite with validated value
+          if (!el.value.trim()) {
+            el.value = finalValue;
+          }
+        }
+
+      } catch (err) {
+        console.error('Auto-fill error:', err);
+        alert('Auto-fill failed: ' + (err.message || 'Unknown error'));
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Auto-fill with AI';
+    }
+
+    // ── Headless aspect prefill (runs during Generate, no modal needed) ──
+    async function prefillItemAspects(meta) {
+      // 1. Fetch aspects for the category
+      const aspectResp = await apiFetch(`/api/ebay/item-aspects?category_id=${encodeURIComponent(meta.suggestedCategoryId)}`);
+      const aspectData = await aspectResp.json();
+      if (!aspectData.success || !aspectData.aspects?.length) return;
+
+      const aspects = aspectData.aspects.sort((a, b) => {
+        if (a.required !== b.required) return a.required ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+      const requiredAspects = aspects.filter(a => a.required);
+      const recommendedAspects = aspects.filter(a => !a.required).slice(0, Math.max(0, 20 - requiredAspects.length));
+      const shownAspects = [...requiredAspects, ...recommendedAspects];
+
+      // 2. Build context for AI
+      const productInfo = [
+        meta.generatedTitle || meta.productName || '',
+        meta.brand || '',
+        meta.productName || '',
+      ].filter(Boolean).join(' | ');
+
+      const existing = meta._itemAspects || {};
+      if (!existing['Brand'] && meta.suggestedBrand) existing['Brand'] = meta.suggestedBrand;
+      if (!existing['Type'] && meta.suggestedType) existing['Type'] = meta.suggestedType;
+      if (!existing['MPN'] && meta.suggestedMpn) existing['MPN'] = meta.suggestedMpn;
+
+      const fieldsToFill = shownAspects.map(asp => ({
+        name: asp.name,
+        required: asp.required,
+        currentValue: existing[asp.name] || '',
+        allowedValues: asp.values && asp.values.length > 0 ? asp.values : null,
+      }));
+
+      const prompt = `You are filling out eBay item specifics for a product listing. Your job is to pick the BEST matching value for each field.
+
+Product: ${productInfo}
+
+CRITICAL RULES:
+1. If a field has "allowedValues", you MUST pick EXACTLY one value from that list — copy it character-for-character. Do NOT invent values.
+2. If a field has no allowedValues (null), provide a reasonable text value based on the product.
+3. For required fields, ALWAYS provide a value. Use "Does Not Apply" only as a last resort for free-text fields.
+4. For fields with allowedValues where you're unsure, pick the closest matching option from the list.
+5. If a field already has a "currentValue", keep it unless you have a clearly better match.
+
+Fields:
+${JSON.stringify(fieldsToFill, null, 2)}
+
+Respond with ONLY a valid JSON object mapping field names to values. No explanation, no markdown, no code blocks. Just the JSON object.`;
+
+      // 3. Call OpenAI
+      const resp = await apiFetch('/api/openai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+          max_completion_tokens: 2000,
+        }),
+      });
+      const data = await resp.json();
+      const content = data.choices?.[0]?.message?.content || '';
+
+      let jsonStr = content.trim();
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      }
+      const values = JSON.parse(jsonStr);
+
+      // 4. Validate against allowed values and store
+      const result = {};
+      for (const asp of shownAspects) {
+        let val = values[asp.name] ? String(values[asp.name]) : (existing[asp.name] || '');
+        if (!val) continue;
+
+        if (asp.values && asp.values.length > 0) {
+          const exact = asp.values.find(v => v.toLowerCase() === val.toLowerCase());
+          if (exact) {
+            val = exact;
+          } else {
+            const partial = asp.values.find(v =>
+              v.toLowerCase().includes(val.toLowerCase()) ||
+              val.toLowerCase().includes(v.toLowerCase())
+            );
+            val = partial || asp.values[0];
+          }
+        }
+        result[asp.name] = val;
+      }
+
+      meta._itemAspects = result;
+      // Sync backwards compat fields
+      meta.suggestedBrand = result['Brand'] || meta.suggestedBrand || '';
+      meta.suggestedType = result['Type'] || meta.suggestedType || '';
+      meta.suggestedMpn = result['MPN'] || meta.suggestedMpn || '';
+    }
+
+    function copyText(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+      });
+    }
+
+    // ═══════════════════════════════════════
+    //  Reject
+    // ═══════════════════════════════════════
+    function rejectListing(ci) {
+      clusterData[ci].rejected = true;
+      clusterData[ci].status = 'rejected';
+      updateRow(ci);
+      deleteDraft(ci);
+    }
+
+    // ═══════════════════════════════════════
+    //  Step 3: eBay listing
+    // ═══════════════════════════════════════
+
+    // Fetch seller policies once
+    let sellerPolicies = null;
+    async function ensurePolicies() {
+      if (sellerPolicies) return sellerPolicies;
+      try {
+        const resp = await apiFetch('/api/ebay/policies');
+        sellerPolicies = await resp.json();
+      } catch (e) {
+        sellerPolicies = { shipping: [], returnPolicies: [] };
+      }
+      return sellerPolicies;
+    }
+
+    async function listOnEbay(ci) {
+      const meta = clusterData[ci];
+
+      const price = document.getElementById(`price-${ci}`).value;
+      const conditionId = document.getElementById(`condition-${ci}`).value;
+      const skuEl = document.getElementById(`sku-${ci}`);
+      const sku = (skuEl ? skuEl.value.trim() : '') || meta._sku || '';
+      const categoryId = meta.suggestedCategoryId || '';
+      const quantity = meta._modalQty || '1';
+      const itemSpecifics = meta._itemAspects || {};
+      // Backwards compat: ensure Brand/Type/MPN from old fields
+      if (!itemSpecifics['Brand'] && (meta.suggestedBrand || meta.brand)) itemSpecifics['Brand'] = meta.suggestedBrand || meta.brand;
+      if (!itemSpecifics['Type'] && meta.suggestedType) itemSpecifics['Type'] = meta.suggestedType;
+      if (!itemSpecifics['MPN'] && meta.suggestedMpn) itemSpecifics['MPN'] = meta.suggestedMpn;
+
+      // Use default policies unless modal overrides were saved
+      const policies = await ensurePolicies();
+      const shippingPolicyId = meta._shippingPolicyId || (policies.shipping?.find(s => s.default)?.id || policies.shipping?.[0]?.id || '');
+      const returnPolicyId = meta._returnPolicyId || (policies.returnPolicies?.find(r => r.default)?.id || policies.returnPolicies?.[0]?.id || '');
+
+      if (!price || parseFloat(price) <= 0) {
+        alert(`Please enter a price for "${meta.generatedTitle || meta.productName}"`);
+        return;
+      }
+      if (!categoryId || !/^\d+$/.test(categoryId)) {
+        alert(`Please enter a valid category ID. Open Details for "${meta.generatedTitle || meta.productName}"`);
+        return;
+      }
+
+      // Safety net: if aspects weren't filled during generate, fill them now
+      if (!meta._itemAspects || Object.keys(meta._itemAspects).length === 0) {
+        try {
+          await prefillItemAspects(meta);
+          // Re-read aspects after fill
+          Object.assign(itemSpecifics, meta._itemAspects || {});
+        } catch (e) { console.error('Pre-publish aspect fill failed:', e); }
+      }
+
+      meta.status = 'listing';
+      updateRow(ci);
+
+      // Step 1: Upload all images
+      const pictureUrls = [];
+      const total = meta.cluster.length;
+
+      for (let i = 0; i < total; i++) {
+        meta._listingProgress = `Uploading image ${i + 1}/${total}`;
+        const item = meta.cluster[i];
+
+        try {
+          const b64 = await ensureBase64(item.img);
+          const resp = await apiFetch('/api/ebay/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              base64: b64,
+              filename: item.img.file.name,
+              mimeType: item.img.file.type
+            })
+          });
+          const data = await resp.json();
+          if (data.success) {
+            pictureUrls.push(data.url);
+          } else {
+            throw new Error(data.error || 'Image upload failed');
+          }
+        } catch (err) {
+          meta.status = 'ready';
+          updateRow(ci);
+          alert(`Image upload error: ${err.message}`);
+          return;
+        }
+      }
+
+      // Step 2: Create listing
+      meta._listingProgress = 'Creating listing...';
+
+      try {
+        const resp = await apiFetch('/api/ebay/add-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: meta.generatedTitle,
+            description: meta.generatedHtml,
+            price,
+            categoryId,
+            conditionId,
+            pictureUrls,
+            quantity,
+            sku,
+            itemSpecifics,
+            shippingPolicyId,
+            returnPolicyId,
+            bestOfferEnabled: meta._bestOfferEnabled || false,
+            autoAcceptPrice: meta._autoAcceptPrice || '',
+            minBestOfferPrice: meta._minBestOfferPrice || '',
+            autoPay: meta._autoPay !== false,
+          })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          meta.ebayItemId = data.itemId;
+          meta.status = 'listed';
+          loadRecentListings();
+        } else {
+          throw new Error(data.error || 'Listing failed');
+        }
+      } catch (err) {
+        meta.status = 'ready';
+        alert(`Listing error: ${err.message}`);
+      }
+      updateRow(ci);
+      await syncDraft(ci);
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

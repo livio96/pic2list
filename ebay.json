@@ -1,0 +1,285 @@
+{
+  "name": "End Ebay Listing",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ebay.com/ws/api.dll",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-EBAY-API-SITEID",
+              "value": "0"
+            },
+            {
+              "name": "X-EBAY-API-COMPATIBILITY-LEVEL",
+              "value": "1421"
+            },
+            {
+              "name": "X-EBAY-API-CALL-NAME",
+              "value": "EndItem"
+            },
+            {
+              "name": "X-EBAY-API-IAF-TOKEN",
+              "value": "v^1.1#i^1#I^3#r^1#f^0#p^3#t^Ul4xMF83OjM0MjIxNjMyMkQ3RTU2NzEzMTZCMzZEMjU3MTFEMEQwXzFfMSNFXjI2MA=="
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/xml"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/xml",
+        "body": "=<?xml version=\"1.0\" encoding=\"utf-8\"?> <EndItemRequest xmlns=\"urn:ebay:apis:eBLBaseComponents\">   <ErrorLanguage>en_US</ErrorLanguage>   <WarningLevel>High</WarningLevel>   <ItemID>{{ $json.custrecord_celigo_ebay_listing_id }}</ItemID>   <EndingReason>NotAvailable</EndingReason> </EndItemRequest>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        16,
+        -448
+      ],
+      "id": "923ef5ee-3937-4001-bbed-e3cd947a25be",
+      "name": "End Ebay listing"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "6bc320ce-f242-46c0-b105-9e876c973826",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -976,
+        -448
+      ],
+      "id": "fcce9907-98fe-4625-84f3-4cff8cf57509",
+      "name": "Webhook",
+      "webhookId": "6bc320ce-f242-46c0-b105-9e876c973826"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Code node (JavaScript)\n// Extracts a single SKU string from a webhook payload\n\nconst items = $input.all();\nconst out = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const raw = items[i].json ?? items[i];\n\n  // Handle different webhook formats\n  let sku = raw.body || raw; \n\n  // If webhook body is JSON, parse it to get the string\n  if (typeof sku === 'object') {\n    try {\n      const values = Object.values(sku);\n      sku = values.length === 1 ? values[0] : JSON.stringify(sku);\n    } catch {\n      sku = JSON.stringify(sku);\n    }\n  }\n\n  sku = String(sku).trim();\n\n  out.push({\n    json: {\n      sku,\n      rowIndex: i\n    }\n  });\n}\n\nreturn out.length ? out : [{ json: { sku: null, rowIndex: 0 } }];\n"
+      },
+      "id": "75052f22-3a3e-4e30-8d37-8e23a2a0ed9c",
+      "name": "Extract Data for OpenAI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "CustomRecord",
+        "customRecordType": {
+          "__rl": true,
+          "value": "customrecord_celigo_ebayio_item_account",
+          "mode": "enterId"
+        },
+        "additionalFields": {
+          "q": "=custrecordsku_text is  {{ $json.sku }} AND custrecord_celigo_ebay_listing_ended is false AND isinactive is false"
+        }
+      },
+      "type": "n8n-nodes-netsuite-rest.netSuiteRest",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -448
+      ],
+      "id": "b24b7d83-1336-4022-b727-68876faac97d",
+      "name": "[Custom Record] - Get list of records",
+      "credentials": {
+        "netSuiteRestOAuth2Api": {
+          "id": "9okY7SQQvqJBzP3B",
+          "name": "NetSuite REST account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "CustomRecord",
+        "operation": "get /{customRecordType}/{id}",
+        "customRecordType": {
+          "__rl": true,
+          "value": "customrecord_celigo_ebayio_item_account",
+          "mode": "enterId"
+        },
+        "id": "={{ $json.items[0].id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-netsuite-rest.netSuiteRest",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -448
+      ],
+      "id": "5991fac2-5207-4e4f-bb9e-1e39556e3a81",
+      "name": "[Custom Record] - Get record",
+      "credentials": {
+        "netSuiteRestOAuth2Api": {
+          "id": "9okY7SQQvqJBzP3B",
+          "name": "NetSuite REST account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ebay.com/ws/api.dll",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-EBAY-API-SITEID",
+              "value": "0"
+            },
+            {
+              "name": "X-EBAY-API-COMPATIBILITY-LEVEL",
+              "value": "1421"
+            },
+            {
+              "name": "X-EBAY-API-CALL-NAME",
+              "value": "Relistitem"
+            },
+            {
+              "name": "X-EBAY-API-IAF-TOKEN",
+              "value": "v^1.1#i^1#I^3#f^0#r^0#p^3#t^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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "text/xml"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/xml",
+        "body": "=<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<RelistItemRequest xmlns=\"urn:ebay:apis:eBLBaseComponents\">    \n\t<ErrorLanguage>en_US</ErrorLanguage>\n\t<WarningLevel>High</WarningLevel>\n       <!-- Enter the ended ItemID to be relisted -->\n  <Item>\n    <ItemID>{{ $json.custrecord_celigo_ebay_listing_id }}</ItemID>\n\t</Item>\n</RelistItemRequest>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        128,
+        -144
+      ],
+      "id": "bbc110ba-d4f2-4dc0-ab16-0f7ad9854080",
+      "name": "Relist Item",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "CustomRecord",
+        "operation": "patch /{customRecordType}/{id}",
+        "customRecordType": {
+          "__rl": true,
+          "value": "customrecord_celigo_ebayio_item_account",
+          "mode": "enterId"
+        },
+        "id": "={{ $('[Custom Record] - Get record').item.json.id }}",
+        "additionalFields": {},
+        "customFields": {
+          "CustomField": [
+            {
+              "fieldName": "custrecord_celigo_ebay_listing_ended",
+              "fieldType": "boolean",
+              "value": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-netsuite-rest.netSuiteRest",
+      "typeVersion": 1,
+      "position": [
+        224,
+        -448
+      ],
+      "id": "f9a220c7-dcef-41f5-ad03-a03bb9c86eab",
+      "name": "[Custom Record] - Update record",
+      "credentials": {
+        "netSuiteRestOAuth2Api": {
+          "id": "9okY7SQQvqJBzP3B",
+          "name": "NetSuite REST account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "End Ebay listing": {
+      "main": [
+        [
+          {
+            "node": "[Custom Record] - Update record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data for OpenAI": {
+      "main": [
+        [
+          {
+            "node": "[Custom Record] - Get list of records",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data for OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Custom Record] - Get list of records": {
+      "main": [
+        [
+          {
+            "node": "[Custom Record] - Get record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "[Custom Record] - Get record": {
+      "main": [
+        [
+          {
+            "node": "End Ebay listing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "GP8fqVytCbGkz6gR"
+  },
+  "versionId": "09bdf834-8e56-45e2-a9e5-bfd41b67461a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1351440d281311baf2ff277d28ead25fc84d300054d39059c28da39a73571cc2"
+  },
+  "id": "BXRA58O2E2vgKgxE",
+  "tags": []
+}

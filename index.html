@@ -1193,7 +1193,7 @@
 
           return `<div class="bundle-card" id="bundleCard-${bi}">
             <div class="bundle-products">${mainHtml}${accHtml}
-              <span class="confidence-badge ${confBadge}" style="margin-left:auto;">${bundle.bundleConfidence}%</span>
+              <span class="confidence-badge ${confBadge}" style="margin-left:auto;">${escapeHtml(String(bundle.bundleConfidence))}%</span>
             </div>
             <div class="bundle-reason">${escapeHtml(bundle.reason)}</div>
             <div class="bundle-actions">
@@ -1204,7 +1204,7 @@
         }).join('');
 
         // Handle merge/separate clicks
-        body.addEventListener('click', function handler(e) {
+        function handler(e) {
           const btn = e.target.closest('[data-bundle]');
           if (!btn) return;
           const bi = parseInt(btn.dataset.bundle);
@@ -1228,10 +1228,18 @@
             card.style.borderColor = '#e5e7eb';
             card.style.background = '#fafbfc';
           }
-        });
+        }
+        body.addEventListener('click', handler);
+
+        // Close on Escape key or overlay click
+        function onKeydown(e) { if (e.key === 'Escape') finish(); }
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) finish(); });
+        document.addEventListener('keydown', onKeydown);
 
         // Done button closes modal and resolves
         function finish() {
+          document.removeEventListener('keydown', onKeydown);
+          body.removeEventListener('click', handler);
           overlay.classList.remove('open');
           body.innerHTML = '';
           resolve(accepted);
@@ -1243,26 +1251,27 @@
     }
 
     function applyBundleMerges(groups, suggestedBundles, acceptedSet) {
-      // For each accepted bundle, merge accessory groups into the main group
+      // Clone groups to avoid mutating originals
+      const result = groups.map(g => ({ ...g, imageIndices: [...g.imageIndices] }));
       const removedGroupIds = new Set();
 
       for (const bi of acceptedSet) {
         const bundle = suggestedBundles[bi];
-        const mainGroup = groups[bundle.mainGroupId];
+        const mainGroup = result[bundle.mainGroupId];
 
         // Build the "with accessories" product name
-        const accNames = bundle.accessoryGroupIds.map(id => groups[id].productName);
+        const accNames = bundle.accessoryGroupIds.map(id => result[id].productName);
         mainGroup.productName = mainGroup.productName + ' with ' + accNames.join(', ');
 
         // Merge image indices
         for (const accId of bundle.accessoryGroupIds) {
-          mainGroup.imageIndices.push(...groups[accId].imageIndices);
+          mainGroup.imageIndices.push(...result[accId].imageIndices);
           removedGroupIds.add(accId);
         }
       }
 
       // Filter out merged accessory groups
-      return groups.filter((_, i) => !removedGroupIds.has(i));
+      return result.filter((_, i) => !removedGroupIds.has(i));
     }
 
     // ═══════════════════════════════════════
@@ -1290,12 +1299,15 @@
         let groups = data.groups || [];
         const suggestedBundles = data.suggestedBundles || [];
 
-        // Show bundle suggestions if any
-        if (suggestedBundles.length > 0) {
+        // Show bundle suggestions if any (filter out invalid references)
+        const validBundles = suggestedBundles.filter(b =>
+          groups[b.mainGroupId] && b.accessoryGroupIds.every(id => groups[id] != null)
+        );
+        if (validBundles.length > 0) {
           statusText.innerHTML = 'Review suggested bundles...';
-          const accepted = await showBundleSuggestions(groups, suggestedBundles);
+          const accepted = await showBundleSuggestions(groups, validBundles);
           if (accepted.size > 0) {
-            groups = applyBundleMerges(groups, suggestedBundles, accepted);
+            groups = applyBundleMerges(groups, validBundles, accepted);
           }
         }
 

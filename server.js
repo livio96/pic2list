@@ -538,7 +538,12 @@ Rules:
       suggestedBundles = [];
     } else {
       groups = result.groups || [];
-      suggestedBundles = result.suggestedBundles || [];
+      suggestedBundles = (result.suggestedBundles || []).filter(b =>
+        typeof b.mainGroupId === 'number' &&
+        Array.isArray(b.accessoryGroupIds) &&
+        typeof b.reason === 'string' &&
+        typeof b.bundleConfidence === 'number'
+      );
     }
 
     res.json({ groups, suggestedBundles });

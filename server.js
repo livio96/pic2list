@@ -504,7 +504,7 @@ For each image, identify the product shown (brand + model/type if visible).
 
 Then GROUP images that show the SAME product together — even if the names aren't exactly identical. For example "Logitech Brio Webcam" and "Logitech Brio 4K Webcam" are the same product and must be in the same group. Use your best judgment to normalize product names.
 
-After grouping, check if any groups are ACCESSORIES or COMPANIONS of each other. For example: a phone case is an accessory for a phone, a charger is an accessory for a laptop, a remote is an accessory for a TV. Think about whether a buyer would reasonably want to list these items together as a bundle.
+After grouping, check if any groups are ACCESSORIES or COMPANIONS of each other. For example: a phone case is an accessory for a phone, a charger is an accessory for a laptop, a remote is an accessory for a TV. Also consider PACKAGING: if you see a generic brown/cardboard shipping box, it is almost certainly the packaging for one of the other items — treat it as an accessory of the most likely product it belongs to. Boxes are not sold separately. Think about whether a buyer would reasonably want to list these items together as a bundle.
 
 Return ONLY valid JSON, no markdown, no explanation. Use this exact format:
 {

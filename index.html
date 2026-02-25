@@ -347,6 +347,48 @@
     }
     .modal-thumb-wrap:hover .modal-thumb-edit { opacity: 1; }
 
+    /* ═══════════════════════════════════════
+       Bundle Suggestion Modal
+       ══════════════════════════════════════ */
+    .bundle-overlay {
+      display: none; position: fixed; inset: 0; z-index: 1050;
+      background: rgba(0,0,0,0.35); backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    .bundle-overlay.open { display: flex; }
+    .bundle-modal {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 16px;
+      width: 90vw; max-width: 640px; max-height: 80vh;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    }
+    .bundle-header {
+      padding: 16px 24px; border-bottom: 1px solid #e5e7eb;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bundle-header h3 { font-size: 15px; font-weight: 600; color: #1a1a2e; margin: 0; }
+    .bundle-body { padding: 16px 24px; overflow-y: auto; flex: 1; }
+    .bundle-card {
+      border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+      margin-bottom: 12px; background: #fafbfc;
+    }
+    .bundle-card:last-child { margin-bottom: 0; }
+    .bundle-products {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .bundle-product {
+      display: flex; align-items: center; gap: 8px;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 10px;
+    }
+    .bundle-product img {
+      width: 40px; height: 40px; border-radius: 6px; object-fit: cover;
+    }
+    .bundle-product-name { font-size: 12px; font-weight: 600; color: #1a1a2e; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bundle-plus { font-size: 18px; font-weight: 700; color: #4f6ef7; }
+    .bundle-reason { font-size: 12px; color: #6b7280; margin-bottom: 12px; font-style: italic; }
+    .bundle-actions { display: flex; gap: 8px; }
+    .bundle-footer { padding: 12px 24px; border-top: 1px solid #e5e7eb; text-align: right; }
+
     /* Image Editor */
     .editor-toolbar {
       display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center;
@@ -670,6 +712,19 @@
         <div id="editorOptions"></div>
       </div>
       <div class="editor-footer" id="editorFooter"></div>
+    </div>
+  </div>
+
+  <!-- Bundle Suggestion Modal -->
+  <div class="bundle-overlay" id="bundleOverlay">
+    <div class="bundle-modal">
+      <div class="bundle-header">
+        <h3>Bundle Suggestions</h3>
+      </div>
+      <div class="bundle-body" id="bundleBody"></div>
+      <div class="bundle-footer">
+        <button class="btn btn-primary btn-sm" id="bundleDoneBtn">Done</button>
+      </div>
     </div>
   </div>
 
@@ -1102,6 +1157,115 @@
     });
 
     // ═══════════════════════════════════════
+    //  Bundle suggestion logic
+    // ═══════════════════════════════════════
+    function showBundleSuggestions(groups, suggestedBundles) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('bundleOverlay');
+        const body = document.getElementById('bundleBody');
+        const doneBtn = document.getElementById('bundleDoneBtn');
+
+        // Track which bundles the user accepted
+        const accepted = new Set();
+
+        // Build cards for each suggested bundle
+        body.innerHTML = suggestedBundles.map((bundle, bi) => {
+          const mainGroup = groups[bundle.mainGroupId];
+          const accGroups = bundle.accessoryGroupIds.map(id => groups[id]);
+
+          const mainThumb = mainGroup.imageIndices[0];
+          const mainHtml = `<div class="bundle-product">
+            <img src="${imageFiles[mainThumb]?.dataUrl || ''}" alt="">
+            <span class="bundle-product-name" title="${escapeHtml(mainGroup.productName)}">${escapeHtml(mainGroup.productName)}</span>
+          </div>`;
+
+          const accHtml = accGroups.map(g => {
+            const accThumb = g.imageIndices[0];
+            return `<span class="bundle-plus">+</span>
+              <div class="bundle-product">
+                <img src="${imageFiles[accThumb]?.dataUrl || ''}" alt="">
+                <span class="bundle-product-name" title="${escapeHtml(g.productName)}">${escapeHtml(g.productName)}</span>
+              </div>`;
+          }).join('');
+
+          const confBadge = bundle.bundleConfidence >= 80 ? 'confidence-high'
+            : bundle.bundleConfidence >= 50 ? 'confidence-med' : 'confidence-low';
+
+          return `<div class="bundle-card" id="bundleCard-${bi}">
+            <div class="bundle-products">${mainHtml}${accHtml}
+              <span class="confidence-badge ${confBadge}" style="margin-left:auto;">${bundle.bundleConfidence}%</span>
+            </div>
+            <div class="bundle-reason">${escapeHtml(bundle.reason)}</div>
+            <div class="bundle-actions">
+              <button class="btn btn-primary btn-xs" data-bundle="${bi}" data-action="merge">Merge into one listing</button>
+              <button class="btn btn-secondary btn-xs" data-bundle="${bi}" data-action="separate">Keep separate</button>
+            </div>
+          </div>`;
+        }).join('');
+
+        // Handle merge/separate clicks
+        body.addEventListener('click', function handler(e) {
+          const btn = e.target.closest('[data-bundle]');
+          if (!btn) return;
+          const bi = parseInt(btn.dataset.bundle);
+          const action = btn.dataset.action;
+          const card = document.getElementById(`bundleCard-${bi}`);
+          const buttons = card.querySelectorAll('.bundle-actions button');
+
+          if (action === 'merge') {
+            accepted.add(bi);
+            buttons.forEach(b => b.classList.remove('btn-primary', 'btn-secondary'));
+            btn.classList.add('btn-primary');
+            buttons.forEach(b => { if (b !== btn) b.classList.add('btn-secondary'); });
+            card.style.borderColor = '#4f6ef7';
+            card.style.background = '#f0f4ff';
+          } else {
+            accepted.delete(bi);
+            buttons.forEach(b => b.classList.remove('btn-primary', 'btn-secondary'));
+            const [mergeBtn, sepBtn] = buttons;
+            mergeBtn.classList.add('btn-secondary');
+            sepBtn.classList.add('btn-primary');
+            card.style.borderColor = '#e5e7eb';
+            card.style.background = '#fafbfc';
+          }
+        });
+
+        // Done button closes modal and resolves
+        function finish() {
+          overlay.classList.remove('open');
+          body.innerHTML = '';
+          resolve(accepted);
+        }
+        doneBtn.onclick = finish;
+
+        overlay.classList.add('open');
+      });
+    }
+
+    function applyBundleMerges(groups, suggestedBundles, acceptedSet) {
+      // For each accepted bundle, merge accessory groups into the main group
+      const removedGroupIds = new Set();
+
+      for (const bi of acceptedSet) {
+        const bundle = suggestedBundles[bi];
+        const mainGroup = groups[bundle.mainGroupId];
+
+        // Build the "with accessories" product name
+        const accNames = bundle.accessoryGroupIds.map(id => groups[id].productName);
+        mainGroup.productName = mainGroup.productName + ' with ' + accNames.join(', ');
+
+        // Merge image indices
+        for (const accId of bundle.accessoryGroupIds) {
+          mainGroup.imageIndices.push(...groups[accId].imageIndices);
+          removedGroupIds.add(accId);
+        }
+      }
+
+      // Filter out merged accessory groups
+      return groups.filter((_, i) => !removedGroupIds.has(i));
+    }
+
+    // ═══════════════════════════════════════
     //  Step 1: AI identifies & groups products
     // ═══════════════════════════════════════
     submitBtn.addEventListener('click', async () => {
@@ -1123,7 +1287,17 @@
         });
         if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `API error ${resp.status}`); }
         const data = await resp.json();
-        const groups = data.groups || [];
+        let groups = data.groups || [];
+        const suggestedBundles = data.suggestedBundles || [];
+
+        // Show bundle suggestions if any
+        if (suggestedBundles.length > 0) {
+          statusText.innerHTML = 'Review suggested bundles...';
+          const accepted = await showBundleSuggestions(groups, suggestedBundles);
+          if (accepted.size > 0) {
+            groups = applyBundleMerges(groups, suggestedBundles, accepted);
+          }
+        }
 
         statusText.innerHTML = '<span class="spinner"></span>Building product list...';
 

@@ -1259,9 +1259,7 @@
         const bundle = suggestedBundles[bi];
         const mainGroup = result[bundle.mainGroupId];
 
-        // Build the "with accessories" product name
-        const accNames = bundle.accessoryGroupIds.map(id => result[id].productName);
-        mainGroup.productName = mainGroup.productName + ' with ' + accNames.join(', ');
+        // Keep title as main item only — no accessory names appended
 
         // Merge image indices
         for (const accId of bundle.accessoryGroupIds) {
@@ -2782,7 +2780,8 @@ HTML:
         });
 
         // Show all aspects from eBay — required first, then recommended, then optional
-        const shownAspects = aspects;
+        // Hide Model — AI picks wrong values too often, causes listing issues
+        const shownAspects = aspects.filter(a => a.name !== 'Model');
         currentAspects = shownAspects;
 
         // Saved values from previous edits

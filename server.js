@@ -504,20 +504,44 @@ For each image, identify the product shown (brand + model/type if visible).
 
 Then GROUP images that show the SAME product together — even if the names aren't exactly identical. For example "Logitech Brio Webcam" and "Logitech Brio 4K Webcam" are the same product and must be in the same group. Use your best judgment to normalize product names.
 
+After grouping, check if any groups are ACCESSORIES or COMPANIONS of each other. For example: a phone case is an accessory for a phone, a charger is an accessory for a laptop, a remote is an accessory for a TV. Think about whether a buyer would reasonably want to list these items together as a bundle.
+
 Return ONLY valid JSON, no markdown, no explanation. Use this exact format:
-[
-  { "productName": "Brand Model Product", "confidence": 95, "imageIndices": [0, 2, 3] },
-  { "productName": "Brand Model Product", "confidence": 60, "imageIndices": [1] }
-]
+{
+  "groups": [
+    { "groupId": 0, "productName": "Brand Model Product", "confidence": 95, "imageIndices": [0, 2, 3] },
+    { "groupId": 1, "productName": "Brand Model Product", "confidence": 60, "imageIndices": [1] }
+  ],
+  "suggestedBundles": [
+    { "mainGroupId": 0, "accessoryGroupIds": [1], "reason": "Short explanation of why these go together", "bundleConfidence": 85 }
+  ]
+}
 
 Rules:
 - Every image index (0 to ${images.length - 1}) must appear in exactly one group
+- groupId must be the index of the group in the array (0, 1, 2, ...)
 - Use the most specific and complete product name for each group
 - If you truly cannot identify a product, use "Unknown product" as the name
-- confidence is 0-100: how certain you are that you correctly identified the exact product (brand, model, variant). 90-100 = exact match with brand+model clearly visible, 60-89 = likely correct but some details uncertain, 30-59 = rough guess, 0-29 = unable to identify`;
+- confidence is 0-100: how certain you are that you correctly identified the exact product (brand, model, variant). 90-100 = exact match with brand+model clearly visible, 60-89 = likely correct but some details uncertain, 30-59 = rough guess, 0-29 = unable to identify
+- suggestedBundles: only include if you detect genuine accessory/companion relationships. Leave as empty array [] if no items are related
+- mainGroupId: the group index of the PRIMARY product (not the accessory)
+- accessoryGroupIds: array of group indices that are accessories OF the main product
+- bundleConfidence: 0-100, how confident you are these items belong together as a bundle
+- A group can only appear in ONE bundle (either as main or accessory, not both)`;
 
-    const groups = await callGemini([{ type: 'text', text: prompt }, ...imageContent], Math.max(1000, images.length * 100));
-    res.json({ groups });
+    const result = await callGemini([{ type: 'text', text: prompt }, ...imageContent], Math.max(1500, images.length * 150));
+
+    // Backward compat: if Gemini returns a plain array (old format), wrap it
+    let groups, suggestedBundles;
+    if (Array.isArray(result)) {
+      groups = result;
+      suggestedBundles = [];
+    } else {
+      groups = result.groups || [];
+      suggestedBundles = result.suggestedBundles || [];
+    }
+
+    res.json({ groups, suggestedBundles });
   } catch (err) {
     res.status(500).json({ error: { message: err.message } });
   }

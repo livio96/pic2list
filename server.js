@@ -127,7 +127,7 @@ async function getEbayBrowseToken(accountId, clientId, clientSecret) {
 
 // ── Test eBay token ──
 app.get('/api/ebay/test-token', async (req, res) => {
-  const token = req.userConfig.ebayToken;
+  const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
   if (!token) return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
 
   const xml = [
@@ -160,7 +160,7 @@ app.get('/api/ebay/test-token', async (req, res) => {
 
 // ── Upload image to eBay ──
 app.post('/api/ebay/upload-image', requireRole('admin', 'publisher'), async (req, res) => {
-  const token = req.userConfig.ebayToken;
+  const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
   if (!token) return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
 
   const { base64, filename, mimeType } = req.body;
@@ -250,7 +250,7 @@ app.get('/api/ebay/policies', (req, res) => {
 
 // ── Add item listing ──
 app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, res) => {
-  const token = req.userConfig.ebayToken;
+  const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
   if (!token) return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
 
   const {
@@ -639,14 +639,14 @@ app.post('/api/claude/chat', async (req, res) => {
 
 // ── Item aspects for a category via Taxonomy API ──
 app.get('/api/ebay/item-aspects', async (req, res) => {
-  const { ebayClientId, ebayClientSecret } = req.userConfig;
-  if (!ebayClientId || !ebayClientSecret) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
+  const { ebayClientId, ebayClientSecret, ebayOAuthToken } = req.userConfig;
+  if (!ebayOAuthToken && (!ebayClientId || !ebayClientSecret)) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
 
   const { category_id } = req.query;
   if (!category_id) return res.json({ success: false, error: 'Missing category_id' });
 
   try {
-    const token = await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
+    const token = ebayOAuthToken || await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
     const url = `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_item_aspects_for_category?category_id=${encodeURIComponent(category_id)}`;
 
     const resp = await fetch(url, {
@@ -675,14 +675,14 @@ app.get('/api/ebay/item-aspects', async (req, res) => {
 
 // ── Category suggestions via Taxonomy API ──
 app.get('/api/ebay/category-suggestions', async (req, res) => {
-  const { ebayClientId, ebayClientSecret } = req.userConfig;
-  if (!ebayClientId || !ebayClientSecret) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
+  const { ebayClientId, ebayClientSecret, ebayOAuthToken } = req.userConfig;
+  if (!ebayOAuthToken && (!ebayClientId || !ebayClientSecret)) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
 
   const { q } = req.query;
   if (!q) return res.json({ success: false, error: 'Missing search query (q)' });
 
   try {
-    const token = await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
+    const token = ebayOAuthToken || await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
     const url = `https://api.ebay.com/commerce/taxonomy/v1/category_tree/0/get_category_suggestions?q=${encodeURIComponent(q)}`;
 
     const resp = await fetch(url, {
@@ -710,14 +710,14 @@ app.get('/api/ebay/category-suggestions', async (req, res) => {
 
 // ── Price range lookup via Browse API ──
 app.get('/api/ebay/price-range', async (req, res) => {
-  const { ebayClientId, ebayClientSecret } = req.userConfig;
-  if (!ebayClientId || !ebayClientSecret) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
+  const { ebayClientId, ebayClientSecret, ebayOAuthToken } = req.userConfig;
+  if (!ebayOAuthToken && (!ebayClientId || !ebayClientSecret)) return res.json({ success: false, error: 'eBay OAuth credentials not configured. Go to Settings.' });
 
   const { q, category_id, condition_id } = req.query;
   if (!q) return res.json({ success: false, error: 'Missing search query (q)' });
 
   try {
-    const token = await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
+    const token = ebayOAuthToken || await getEbayBrowseToken(req.session.accountId, ebayClientId, ebayClientSecret);
 
     let filters = 'priceCurrency:USD,buyingOptions:{FIXED_PRICE|BEST_OFFER}';
     if (condition_id) filters += `,conditionIds:{${condition_id}}`;

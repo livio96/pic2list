@@ -10,6 +10,7 @@ const configRoutes = require('./routes/config');
 const listingsRoutes = require('./routes/listings');
 const usersRoutes = require('./routes/users');
 const draftsRoutes = require('./routes/drafts');
+const ebayOAuthRoutes = require('./routes/ebay-oauth');
 
 const app = express();
 app.use(express.json({ limit: '200mb' }));
@@ -76,6 +77,7 @@ app.use('/api/config', configRoutes);
 app.use('/api/listings', listingsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/drafts', draftsRoutes);
+app.use('/api/ebay/oauth', ebayOAuthRoutes);
 
 // ── eBay helpers ──
 const EBAY_API_URL = 'https://api.ebay.com/ws/api.dll';

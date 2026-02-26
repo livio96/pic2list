@@ -88,7 +88,7 @@ router.get('/callback', requireAuth, async (req, res) => {
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token || null;
     const expiresIn = tokenData.expires_in || 7200;
-    const tokenExpiry = Date.now() + expiresIn * 1000;
+    const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
 
     // Best-effort: fetch eBay username
     let ebayUsername = null;
@@ -117,7 +117,7 @@ router.get('/callback', requireAuth, async (req, res) => {
       [
         encrypt(accessToken),
         refreshToken ? encrypt(refreshToken) : null,
-        String(tokenExpiry),
+        tokenExpiry,
         ebayUsername,
         accountId,
       ]

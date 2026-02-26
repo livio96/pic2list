@@ -49,7 +49,8 @@ async function loadUserConfig(req, res, next) {
     // Try to use OAuth token if available
     if (row.ebay_oauth_access_token) {
       const expiry = row.ebay_oauth_token_expiry ? new Date(row.ebay_oauth_token_expiry) : null;
-      const isExpired = !expiry || Date.now() > expiry.getTime();
+      const EXPIRY_BUFFER_MS = 5 * 60 * 1000; // refresh 5 minutes early
+      const isExpired = !expiry || Date.now() > (expiry.getTime() - EXPIRY_BUFFER_MS);
 
       if (!isExpired) {
         req.userConfig.ebayOAuthToken = decrypt(row.ebay_oauth_access_token);

@@ -21,7 +21,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     // Load account owner's config (eBay keys + template)
     const ownerResult = await pool.query(
-      'SELECT ebay_token, ebay_client_id, ebay_client_secret, example_template, ebay_oauth_username, ebay_oauth_access_token FROM users WHERE id = $1',
+      'SELECT ebay_token, ebay_client_id, ebay_client_secret, example_template, ebay_oauth_username, (ebay_oauth_access_token IS NOT NULL) AS ebay_oauth_connected FROM users WHERE id = $1',
       [accountId]
     );
     const owner = ownerResult.rows[0] || {};
@@ -48,7 +48,7 @@ router.get('/', requireAuth, async (req, res) => {
       response.ebay_client_id =     mask(owner.ebay_client_id);
       response.ebay_client_secret = mask(owner.ebay_client_secret);
       response.ebay_oauth = {
-        connected: !!owner.ebay_oauth_access_token,
+        connected: !!owner.ebay_oauth_connected,
         username: owner.ebay_oauth_username || null,
       };
     }

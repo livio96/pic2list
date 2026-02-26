@@ -13,7 +13,7 @@ const EBAY_OAUTH_SCOPES = [
   'https://api.ebay.com/oauth/api_scope/commerce.identity.readonly',
 ].join(' ');
 
-// GET /api/ebay-oauth/initiate — start eBay 3-legged OAuth flow (admin only)
+// GET /api/ebay/oauth/initiate — start eBay 3-legged OAuth flow (admin only)
 router.get('/initiate', requireAuth, requireRole('admin'), (req, res) => {
   const clientId = process.env.EBAY_APP_CLIENT_ID;
   const ruName = process.env.EBAY_RUNAME;
@@ -36,13 +36,18 @@ router.get('/initiate', requireAuth, requireRole('admin'), (req, res) => {
   res.redirect(`https://auth.ebay.com/oauth2/authorize?${params.toString()}`);
 });
 
-// GET /api/ebay-oauth/callback — handle eBay OAuth callback (auth required, any role)
+// GET /api/ebay/oauth/callback — handle eBay OAuth callback (auth required, any role)
 router.get('/callback', requireAuth, async (req, res) => {
   const { code, state } = req.query;
   const savedState = req.session.ebayOAuthState;
 
   // Clean up state from session regardless of outcome
   delete req.session.ebayOAuthState;
+
+  // Handle user declining consent
+  if (req.query.error === 'access_denied' || req.query.error === 'consent_declined') {
+    return res.redirect('/config.html?ebay_oauth=declined');
+  }
 
   // Validate state parameter
   if (!savedState || state !== savedState) {
@@ -51,7 +56,7 @@ router.get('/callback', requireAuth, async (req, res) => {
 
   // Validate code is present
   if (!code) {
-    return res.redirect('/config.html?ebay_oauth=error&reason=no_code');
+    return res.redirect('/config.html?ebay_oauth=declined');
   }
 
   const clientId = process.env.EBAY_APP_CLIENT_ID;
@@ -130,7 +135,7 @@ router.get('/callback', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/ebay-oauth/disconnect — clear eBay OAuth tokens (admin only)
+// POST /api/ebay/oauth/disconnect — clear eBay OAuth tokens (admin only)
 router.post('/disconnect', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const accountId = req.session.accountId;

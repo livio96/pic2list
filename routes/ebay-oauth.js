@@ -64,11 +64,13 @@ router.get('/callback', requireAuth, async (req, res) => {
   const ruName = process.env.EBAY_RUNAME;
 
   if (!clientId || !clientSecret || !ruName) {
-    return res.redirect('/config.html?ebay_oauth=error&reason=server_error');
+    console.error('eBay OAuth env vars missing:', { clientId: !!clientId, clientSecret: !!clientSecret, ruName: !!ruName });
+    return res.redirect('/config.html?ebay_oauth=error&reason=server_config');
   }
 
   try {
     // Exchange authorization code for tokens
+    console.log('[eBay OAuth] Step 1: Exchanging auth code for tokens...');
     const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const tokenResp = await fetch('https://api.ebay.com/identity/v1/oauth2/token', {
       method: 'POST',
@@ -86,10 +88,10 @@ router.get('/callback', requireAuth, async (req, res) => {
     const tokenData = await tokenResp.json();
 
     if (!tokenResp.ok || !tokenData.access_token) {
-      console.error('eBay token exchange failed:', JSON.stringify(tokenData, null, 2));
-      console.error('eBay token exchange status:', tokenResp.status);
+      console.error('eBay token exchange failed (status ' + tokenResp.status + '):', JSON.stringify(tokenData, null, 2));
       return res.redirect('/config.html?ebay_oauth=error&reason=token_exchange');
     }
+    console.log('[eBay OAuth] Step 1 OK: Got access token');
 
     const accessToken = tokenData.access_token;
     const refreshToken = tokenData.refresh_token || null;
@@ -97,6 +99,7 @@ router.get('/callback', requireAuth, async (req, res) => {
     const tokenExpiry = new Date(Date.now() + expiresIn * 1000);
 
     // Best-effort: fetch eBay username
+    console.log('[eBay OAuth] Step 2: Fetching eBay username...');
     let ebayUsername = null;
     try {
       const userResp = await fetch('https://apiz.ebay.com/commerce/identity/v1/user/', {
@@ -107,10 +110,12 @@ router.get('/callback', requireAuth, async (req, res) => {
         ebayUsername = userData.username || null;
       }
     } catch (e) {
-      // Best-effort — don't fail if this errors
+      console.log('[eBay OAuth] Step 2: Username fetch failed (non-fatal):', e.message);
     }
+    console.log('[eBay OAuth] Step 2 OK: username =', ebayUsername);
 
     // Store encrypted tokens on the account owner's record
+    console.log('[eBay OAuth] Step 3: Storing tokens for accountId =', req.session.accountId);
     const accountId = req.session.accountId;
     await pool.query(
       `UPDATE users SET
@@ -128,10 +133,11 @@ router.get('/callback', requireAuth, async (req, res) => {
         accountId,
       ]
     );
+    console.log('[eBay OAuth] Step 3 OK: Tokens stored. Redirecting to success.');
 
     return res.redirect('/config.html?ebay_oauth=success');
   } catch (err) {
-    console.error('eBay OAuth callback error:', err);
+    console.error('eBay OAuth callback error:', err.message, err.stack);
     return res.redirect('/config.html?ebay_oauth=error&reason=server_error');
   }
 });

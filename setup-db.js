@@ -113,6 +113,10 @@ async function setup() {
     `UPDATE "listings" SET account_id = user_id WHERE account_id IS NULL`,
     `CREATE INDEX IF NOT EXISTS "IDX_listings_account_id" ON "listings" ("account_id")`,
     `CREATE INDEX IF NOT EXISTS "IDX_users_account_id" ON "users" ("account_id")`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ebay_oauth_access_token" TEXT`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ebay_oauth_refresh_token" TEXT`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ebay_oauth_token_expiry" TIMESTAMP`,
+    `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "ebay_oauth_username" VARCHAR(255)`,
   ];
   for (const sql of migrations) {
     try { await pool.query(sql); } catch (e) { /* column may already exist */ }

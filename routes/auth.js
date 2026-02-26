@@ -6,16 +6,6 @@ const router = express.Router();
 
 const SALT_ROUNDS = 12;
 
-// Fire-and-forget notification to admin
-function notifyAdmin(userEmail, event) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  resend.emails.send({
-    from: 'LazyListings <noreply@lazylistings.com>',
-    to: 'liviob@live.com',
-    subject: `LazyListings — ${event}`,
-    html: `<p><strong>${userEmail}</strong> just ${event === 'New Signup' ? 'signed up' : 'logged in'}.</p>`,
-  }).catch(err => console.error('Admin notify error:', err));
-}
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
@@ -48,7 +38,6 @@ router.post('/signup', async (req, res) => {
     req.session.userId = userId;
     req.session.role = 'admin';
     req.session.accountId = userId;
-    notifyAdmin(email.trim().toLowerCase(), 'New Signup');
     res.json({ success: true, user: result.rows[0] });
   } catch (err) {
     console.error('Signup error:', err);
@@ -78,7 +67,6 @@ router.post('/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.role = user.role;
     req.session.accountId = user.account_id;
-    notifyAdmin(user.email, 'Login');
     res.json({ success: true, user: { id: user.id, first_name: user.first_name, last_name: user.last_name, email: user.email, role: user.role } });
   } catch (err) {
     console.error('Login error:', err);

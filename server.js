@@ -244,8 +244,59 @@ const SELLER_POLICIES = {
   ],
 };
 
-app.get('/api/ebay/policies', (req, res) => {
-  res.json(SELLER_POLICIES);
+app.get('/api/ebay/policies', async (req, res) => {
+  const oauthToken = req.userConfig.ebayOAuthToken;
+
+  // If no OAuth token, return hardcoded policies (backward compatible)
+  if (!oauthToken) {
+    return res.json(SELLER_POLICIES);
+  }
+
+  // Fetch real policies from eBay Account API
+  try {
+    const headers = { 'Authorization': `Bearer ${oauthToken}`, 'Content-Type': 'application/json' };
+    const marketplaceId = 'EBAY_US';
+
+    const [fulfillmentResp, returnResp, paymentResp] = await Promise.all([
+      fetch(`https://api.ebay.com/sell/account/v1/fulfillment_policy?marketplace_id=${marketplaceId}`, { headers }),
+      fetch(`https://api.ebay.com/sell/account/v1/return_policy?marketplace_id=${marketplaceId}`, { headers }),
+      fetch(`https://api.ebay.com/sell/account/v1/payment_policy?marketplace_id=${marketplaceId}`, { headers }),
+    ]);
+
+    const [fulfillmentData, returnData, paymentData] = await Promise.all([
+      fulfillmentResp.json(),
+      returnResp.json(),
+      paymentResp.json(),
+    ]);
+
+    // Map shipping/fulfillment policies
+    const shipping = (fulfillmentData.fulfillmentPolicies || []).map((p, i) => ({
+      id: p.fulfillmentPolicyId,
+      name: p.name || `Shipping Policy ${p.fulfillmentPolicyId}`,
+      default: i === 0,
+    }));
+
+    // Map return policies
+    const returnPolicies = (returnData.returnPolicies || []).map((p, i) => ({
+      id: p.returnPolicyId,
+      name: p.name || `Return Policy ${p.returnPolicyId}`,
+      default: i === 0,
+      // Include inline details for AddItem XML
+      accepted: p.returnsAccepted ? 'ReturnsAccepted' : 'ReturnsNotAccepted',
+      within: p.returnPeriod ? `Days_${p.returnPeriod.value}` : null,
+      paidBy: p.returnShippingCostPayer === 'SELLER' ? 'Seller' : 'Buyer',
+    }));
+
+    // Get first payment policy ID
+    const paymentPolicies = paymentData.paymentPolicies || [];
+    const payment = paymentPolicies.length > 0 ? paymentPolicies[0].paymentPolicyId : '';
+
+    res.json({ shipping, returnPolicies, payment });
+  } catch (err) {
+    console.error('Failed to fetch eBay policies:', err.message);
+    // Fall back to hardcoded on error
+    res.json(SELLER_POLICIES);
+  }
 });
 
 // ── Add item listing ──
@@ -256,7 +307,7 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
   const {
     title, description, price, categoryId,
     conditionId, pictureUrls, quantity, location,
-    sku, itemSpecifics, shippingPolicyId, returnPolicyId,
+    sku, itemSpecifics, shippingPolicyId, returnPolicyId, paymentPolicyId,
     bestOfferEnabled, autoAcceptPrice, minBestOfferPrice, autoPay,
   } = req.body;
 
@@ -318,21 +369,36 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     }
   }
 
-  const shipId = shippingPolicyId || SELLER_POLICIES.shipping[0].id;
-  const payId = SELLER_POLICIES.payment;
+  const isOAuthUser = !!req.userConfig.ebayOAuthToken;
 
-  // Resolve return policy to inline details (bypasses deprecated returnDescription in profiles)
-  const retPolicy = SELLER_POLICIES.returnPolicies.find(r => r.id === returnPolicyId)
-    || SELLER_POLICIES.returnPolicies.find(r => r.default)
-    || SELLER_POLICIES.returnPolicies[0];
+  let shipId, payId, returnPolicyXml, returnProfileXml;
 
-  const returnPolicyXml = [
-    '    <ReturnPolicy>',
-    `      <ReturnsAcceptedOption>${retPolicy.accepted}</ReturnsAcceptedOption>`,
-    retPolicy.within ? `      <ReturnsWithinOption>${retPolicy.within}</ReturnsWithinOption>` : null,
-    retPolicy.paidBy ? `      <ShippingCostPaidByOption>${retPolicy.paidBy}</ShippingCostPaidByOption>` : null,
-    '    </ReturnPolicy>',
-  ].filter(Boolean).join('\n');
+  if (isOAuthUser) {
+    // OAuth user: policy IDs come from their own eBay account (fetched dynamically)
+    shipId = shippingPolicyId || '';
+    payId = paymentPolicyId || '';
+    returnPolicyXml = '';
+    returnProfileXml = returnPolicyId ? [
+      '      <SellerReturnProfile>',
+      `        <ReturnProfileID>${escapeXml(returnPolicyId)}</ReturnProfileID>`,
+      '      </SellerReturnProfile>',
+    ].join('\n') : '';
+  } else {
+    // Manual key user: use hardcoded policies
+    shipId = shippingPolicyId || SELLER_POLICIES.shipping[0].id;
+    payId = SELLER_POLICIES.payment;
+    const retPolicy = SELLER_POLICIES.returnPolicies.find(r => r.id === returnPolicyId)
+      || SELLER_POLICIES.returnPolicies.find(r => r.default)
+      || SELLER_POLICIES.returnPolicies[0];
+    returnPolicyXml = [
+      '    <ReturnPolicy>',
+      `      <ReturnsAcceptedOption>${retPolicy.accepted}</ReturnsAcceptedOption>`,
+      retPolicy.within ? `      <ReturnsWithinOption>${retPolicy.within}</ReturnsWithinOption>` : null,
+      retPolicy.paidBy ? `      <ShippingCostPaidByOption>${retPolicy.paidBy}</ShippingCostPaidByOption>` : null,
+      '    </ReturnPolicy>',
+    ].filter(Boolean).join('\n');
+    returnProfileXml = '';
+  }
 
   const xml = [
     '<?xml version="1.0" encoding="utf-8"?>',
@@ -372,9 +438,10 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     '      <SellerShippingProfile>',
     `        <ShippingProfileID>${escapeXml(shipId)}</ShippingProfileID>`,
     '      </SellerShippingProfile>',
-    '      <SellerPaymentProfile>',
-    `        <PaymentProfileID>${escapeXml(payId)}</PaymentProfileID>`,
-    '      </SellerPaymentProfile>',
+    payId ? '      <SellerPaymentProfile>' : null,
+    payId ? `        <PaymentProfileID>${escapeXml(payId)}</PaymentProfileID>` : null,
+    payId ? '      </SellerPaymentProfile>' : null,
+    returnProfileXml,
     '    </SellerProfiles>',
     '  </Item>',
     '</AddItemRequest>',

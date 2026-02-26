@@ -3304,6 +3304,7 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
       const policies = await ensurePolicies();
       const shippingPolicyId = meta._shippingPolicyId || (policies.shipping?.find(s => s.default)?.id || policies.shipping?.[0]?.id || '');
       const returnPolicyId = meta._returnPolicyId || (policies.returnPolicies?.find(r => r.default)?.id || policies.returnPolicies?.[0]?.id || '');
+      const paymentPolicyId = policies.payment || '';
 
       if (!price || parseFloat(price) <= 0) {
         alert(`Please enter a price for "${meta.generatedTitle || meta.productName}"`);
@@ -3378,6 +3379,7 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
             itemSpecifics,
             shippingPolicyId,
             returnPolicyId,
+            paymentPolicyId,
             bestOfferEnabled: meta._bestOfferEnabled || false,
             autoAcceptPrice: meta._autoAcceptPrice || '',
             minBestOfferPrice: meta._minBestOfferPrice || '',

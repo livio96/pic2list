@@ -265,8 +265,16 @@
           errorMsg.style.color = '#059669';
           history.replaceState(null, '', '/config.html');
         } else if (oauthResult === 'error') {
+          const reason = urlParams.get('reason') || 'unknown';
+          const reasonMessages = {
+            invalid_state: 'Session expired during eBay login. Please try again.',
+            no_code: 'eBay did not return an authorization code.',
+            token_exchange: 'Failed to exchange eBay authorization code for tokens. Check server logs for details.',
+            server_config: 'eBay OAuth is not configured on the server (missing env vars).',
+            server_error: 'Unexpected server error during eBay connection.',
+          };
           const errorMsg = document.getElementById('errorMsg');
-          errorMsg.textContent = 'Failed to connect eBay account. Please try again.';
+          errorMsg.textContent = reasonMessages[reason] || 'Failed to connect eBay account (' + reason + ')';
           errorMsg.style.display = 'block';
           history.replaceState(null, '', '/config.html');
         } else if (oauthResult === 'declined') {

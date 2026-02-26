@@ -86,7 +86,8 @@ router.get('/callback', requireAuth, async (req, res) => {
     const tokenData = await tokenResp.json();
 
     if (!tokenResp.ok || !tokenData.access_token) {
-      console.error('eBay token exchange failed:', tokenData);
+      console.error('eBay token exchange failed:', JSON.stringify(tokenData, null, 2));
+      console.error('eBay token exchange status:', tokenResp.status);
       return res.redirect('/config.html?ebay_oauth=error&reason=token_exchange');
     }
 

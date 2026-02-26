@@ -118,6 +118,29 @@
         </div>
       </div>
 
+      <div class="config-section" id="section-ebay-connect" style="display:none;">
+        <h3>eBay Account</h3>
+        <div id="ebayOAuthNotConnected">
+          <p style="font-size:13px; color:#555b6e; margin-bottom:14px;">Connect your eBay account to list items without entering API keys manually.</p>
+          <a href="/api/ebay/oauth/initiate" style="display:inline-flex; align-items:center; gap:8px; padding:10px 24px; border:none; border-radius:10px; background:#0064d2; color:#fff; font-size:14px; font-weight:600; text-decoration:none; cursor:pointer; transition:background 0.15s;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Connect to eBay
+          </a>
+        </div>
+        <div id="ebayOAuthConnected" style="display:none;">
+          <div style="display:flex; align-items:center; gap:12px; padding:14px 18px; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; margin-bottom:14px;">
+            <div style="width:36px; height:36px; border-radius:50%; background:#059669; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px; font-weight:600; color:#065f46;">Connected to eBay</div>
+              <div style="font-size:12px; color:#059669;" id="ebayOAuthUsernameDisplay"></div>
+            </div>
+          </div>
+          <button class="btn-sm" id="ebayDisconnectBtn" style="color:#dc2626; border-color:#fecaca;">Disconnect eBay Account</button>
+        </div>
+      </div>
+
       <div class="config-section" id="section-ebay-trading">
         <h3>eBay Trading API</h3>
         <div class="config-field">
@@ -219,6 +242,40 @@
           }
         }
 
+        // eBay OAuth connection status (admin only)
+        if (userRole === 'admin') {
+          document.getElementById('section-ebay-connect').style.display = '';
+          if (cfg.ebay_oauth && cfg.ebay_oauth.connected) {
+            document.getElementById('ebayOAuthNotConnected').style.display = 'none';
+            document.getElementById('ebayOAuthConnected').style.display = '';
+            document.getElementById('ebayOAuthUsernameDisplay').textContent =
+              cfg.ebay_oauth.username ? 'Signed in as ' + cfg.ebay_oauth.username : 'Account connected';
+          }
+        }
+
+        // Handle OAuth redirect result
+        const urlParams = new URLSearchParams(window.location.search);
+        const oauthResult = urlParams.get('ebay_oauth');
+        if (oauthResult === 'success') {
+          const errorMsg = document.getElementById('errorMsg');
+          errorMsg.textContent = 'eBay account connected successfully!';
+          errorMsg.style.display = 'block';
+          errorMsg.style.background = '#ecfdf5';
+          errorMsg.style.borderColor = '#a7f3d0';
+          errorMsg.style.color = '#059669';
+          history.replaceState(null, '', '/config.html');
+        } else if (oauthResult === 'error') {
+          const errorMsg = document.getElementById('errorMsg');
+          errorMsg.textContent = 'Failed to connect eBay account. Please try again.';
+          errorMsg.style.display = 'block';
+          history.replaceState(null, '', '/config.html');
+        } else if (oauthResult === 'declined') {
+          const errorMsg = document.getElementById('errorMsg');
+          errorMsg.textContent = 'eBay connection was declined.';
+          errorMsg.style.display = 'block';
+          history.replaceState(null, '', '/config.html');
+        }
+
       } catch (err) {
         console.error('Failed to load config:', err);
       }
@@ -293,6 +350,22 @@
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/login.html';
+    });
+
+    // Disconnect eBay OAuth
+    document.getElementById('ebayDisconnectBtn').addEventListener('click', async () => {
+      if (!confirm('Disconnect your eBay account? You can reconnect at any time.')) return;
+      try {
+        const resp = await fetch('/api/ebay/oauth/disconnect', { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Failed to disconnect: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network error. Please try again.');
+      }
     });
   </script>
 </body>

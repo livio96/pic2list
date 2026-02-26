@@ -15,7 +15,7 @@ async function setup() {
       "first_name" VARCHAR(100) NOT NULL,
       "last_name" VARCHAR(100) NOT NULL,
       "company_name" VARCHAR(200),
-      "username" VARCHAR(100) NOT NULL UNIQUE,
+      "email" VARCHAR(255) NOT NULL UNIQUE,
       "password_hash" VARCHAR(255) NOT NULL,
       "ebay_token" TEXT,
       "google_vision_key" TEXT,
@@ -88,10 +88,23 @@ async function setup() {
       "created_at" TIMESTAMP DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS "IDX_draft_images_draft_id" ON "draft_images" ("draft_id");
+
+    CREATE TABLE IF NOT EXISTS "password_reset_codes" (
+      "id" SERIAL PRIMARY KEY,
+      "user_id" INTEGER NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "code" VARCHAR(6) NOT NULL,
+      "expires_at" TIMESTAMP NOT NULL,
+      "used" BOOLEAN DEFAULT false,
+      "created_at" TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS "IDX_reset_codes_user_id" ON "password_reset_codes" ("user_id");
+    CREATE INDEX IF NOT EXISTS "IDX_reset_codes_expires" ON "password_reset_codes" ("expires_at");
   `);
 
   // Add columns that may not exist on older installations
   const migrations = [
+    `ALTER TABLE "users" RENAME COLUMN "username" TO "email"`,
+    `ALTER TABLE "users" ALTER COLUMN "email" TYPE VARCHAR(255)`,
     `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "example_template" TEXT`,
     `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" VARCHAR(20) NOT NULL DEFAULT 'admin'`,
     `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "account_id" INTEGER REFERENCES "users"("id")`,

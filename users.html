@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pic2list - Manage Users</title>
+  <title>LazyListings - Manage Users</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -56,7 +56,7 @@
     }
     .member-info { flex: 1; }
     .member-info .name { font-size: 14px; font-weight: 600; }
-    .member-info .username { color: #8b8fa3; font-size: 12px; }
+    .member-info .user-email { color: #8b8fa3; font-size: 12px; }
     .member-info .date { color: #b0b5c3; font-size: 11px; margin-top: 2px; }
 
     .member-actions { display: flex; gap: 8px; align-items: center; }
@@ -110,11 +110,12 @@
 </head>
 <body>
   <header>
-    <h1>pic2list</h1>
+    <h1>LazyListings</h1>
     <span>Manage Users</span>
     <nav>
       <a href="/">Dashboard</a>
       <a href="/config.html">Settings</a>
+      <a href="/how-it-works.html">How It Works</a>
       <a href="/users.html">Manage Users</a>
       <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
       <button class="btn-sm" id="logoutBtn">Log Out</button>
@@ -146,8 +147,8 @@
           </div>
         </div>
         <div class="form-field">
-          <label>Username</label>
-          <input type="text" id="newUserUsername" placeholder="username">
+          <label>Email</label>
+          <input type="email" id="newUserEmail" placeholder="user@example.com">
         </div>
         <div class="form-field">
           <label>Password</label>
@@ -247,7 +248,7 @@
               <div class="member-avatar">${initial}</div>
               <div class="member-info">
                 <div class="name">${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)}</div>
-                <div class="username">@${escapeHtml(u.username)}</div>
+                <div class="user-email">${escapeHtml(u.email)}</div>
                 <div class="date">Joined ${joined}</div>
               </div>
               <span class="role-badge ${roleBadgeClass}">${roleLabel}</span>
@@ -305,11 +306,11 @@
 
       const first_name = document.getElementById('newUserFirst').value.trim();
       const last_name = document.getElementById('newUserLast').value.trim();
-      const username = document.getElementById('newUserUsername').value.trim();
+      const email = document.getElementById('newUserEmail').value.trim();
       const password = document.getElementById('newUserPassword').value;
       const role = document.getElementById('newUserRole').value;
 
-      if (!first_name || !last_name || !username || !password) {
+      if (!first_name || !last_name || !email || !password) {
         err.textContent = 'All fields are required.';
         err.style.display = 'inline';
         return;
@@ -327,7 +328,7 @@
         const resp = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ first_name, last_name, username, password, role }),
+          body: JSON.stringify({ first_name, last_name, email, password, role }),
         });
         const data = await resp.json();
         if (data.success) {
@@ -336,7 +337,7 @@
           setTimeout(() => { msg.style.display = 'none'; }, 3000);
           document.getElementById('newUserFirst').value = '';
           document.getElementById('newUserLast').value = '';
-          document.getElementById('newUserUsername').value = '';
+          document.getElementById('newUserEmail').value = '';
           document.getElementById('newUserPassword').value = '';
           document.getElementById('newUserRole').value = 'operator';
           loadTeamMembers();

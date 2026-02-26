@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pic2list</title>
+  <title>LazyListings</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -630,11 +630,12 @@
 </head>
 <body>
   <header>
-    <h1>pic2list</h1>
+    <h1>LazyListings</h1>
     <span>Upload photos, identify products, list on eBay</span>
     <nav style="margin-left:auto; display:flex; gap:16px; align-items:center;">
       <a href="/" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600;">Dashboard</a>
       <a href="/config.html" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600;">Settings</a>
+      <a href="/how-it-works.html" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600;">How It Works</a>
       <a href="/users.html" id="navUsers" style="font-size:13px; color:#4f6ef7; text-decoration:none; font-weight:600; display:none;">Manage Users</a>
       <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
       <button class="btn btn-secondary btn-xs" id="logoutBtn" style="font-size:12px;">Log Out</button>
@@ -1733,7 +1734,9 @@
       meta.status = 'generating';
       updateRow(ci);
 
-      const prompt = buildPrompt(meta.productName, meta.brand || 'Unknown', meta.topLabels.map(([d]) => d).join(', '), meta.topWeb.map(([d]) => d).join(', '));
+      const condEl = document.getElementById(`condition-${ci}`);
+      const conditionText = condEl ? condEl.options[condEl.selectedIndex].text : 'Used';
+      const prompt = buildPrompt(meta.productName, meta.brand || 'Unknown', meta.topLabels.map(([d]) => d).join(', '), meta.topWeb.map(([d]) => d).join(', '), conditionText);
 
       try {
         const resp = await apiFetch(OPENAI_URL, {
@@ -1800,7 +1803,7 @@
       await syncDraft(ci);
     }
 
-    function buildPrompt(product, brand, labels, webEntities) {
+    function buildPrompt(product, brand, labels, webEntities, condition) {
       const defaultExampleHtml = `<div style="max-width:900px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#222;"><div style="background:#003366;padding:20px 30px;text-align:center;border-radius:8px 8px 0 0;"><h1 style="color:#ffffff;font-size:22px;margin:0;">Cisco SG350-28P 28-Port Gigabit PoE Managed Switch</h1></div><div style="padding:25px 30px;background:#f9f9f9;"><p style="font-size:15px;line-height:1.6;color:#333;">The <strong>Cisco SG350-28P</strong> is a high-performance <strong>28-port Gigabit PoE managed network switch</strong> designed for small to medium businesses.</p><h2 style="color:#003366;font-size:17px;border-bottom:2px solid #003366;padding-bottom:6px;">Key Features</h2><ul style="font-size:14px;line-height:1.8;color:#444;"><li><strong>28 Gigabit Ethernet Ports</strong> — 24x PoE+ ports, 2x combo mini-GBIC, 2x SFP</li><li><strong>195W PoE Budget</strong> — Power IP cameras, phones, access points</li><li><strong>Advanced L3 Managed</strong> — Static routing, ACLs, VLAN, QoS</li></ul><h2 style="color:#003366;font-size:17px;border-bottom:2px solid #003366;padding-bottom:6px;">Ideal For</h2><ul style="font-size:14px;line-height:1.8;color:#444;"><li>Small &amp; medium business networks</li><li>VoIP &amp; IP surveillance</li></ul></div><div style="background:#003366;padding:15px 30px;text-align:center;border-radius:0 0 8px 8px;"><p style="color:#ffffff;font-size:13px;margin:0;">Fast Shipping &bull; Professional Packaging &bull; Trusted Seller</p></div></div>`;
 
       const userTemplate = window._exampleTemplate || '';
@@ -1830,11 +1833,12 @@ ${exampleHtml}
 
 Now create the same thing for this item: ${product}
 Brand: ${brand}
+Condition: ${condition}
 Detected features/labels: ${labels}
 Related web entities: ${webEntities}
 
 IMPORTANT: Your response MUST follow this exact format:
-TITLE: [An eBay-optimized title, max 80 characters, keyword-rich]
+TITLE: [An eBay-optimized title, max 80 characters, keyword-rich. MUST place the item condition "${condition}" at the very END of the title as the last word(s), never in the middle or beginning.]
 CATEGORY_ID: [The most appropriate eBay leaf category ID number, e.g. 31388 for Digital Cameras, 175673 for Network Switches, 171485 for Laptops. Use a real eBay category ID.]
 CATEGORY_NAME: [The eBay category name for that ID]
 BRAND: [The brand/manufacturer name, e.g. Cisco, Apple, Dell. Use "Unbranded" if truly generic.]
@@ -1880,9 +1884,12 @@ HTML:
       meta.status = 'verifying';
       updateRow(ci);
 
+      const condElRef = document.getElementById(`condition-${ci}`);
+      const condText = condElRef ? condElRef.options[condElRef.selectedIndex].text : 'Used';
       const productInfo = [
         meta.productName || '',
         meta.brand ? `Brand: ${meta.brand}` : '',
+        `Condition: ${condText}`,
         meta.suggestedMpn ? `MPN: ${meta.suggestedMpn}` : '',
         meta.topLabels.length ? `Labels: ${meta.topLabels.map(([d]) => d).join(', ')}` : '',
         meta.topWeb.length ? `Web entities: ${meta.topWeb.map(([d]) => d).join(', ')}` : '',
@@ -1905,7 +1912,7 @@ EXISTING HTML DESCRIPTION:
 ${meta.generatedHtml}
 
 YOUR TASKS:
-1. TITLE: Review the title. Fix any factual errors about the product. Improve keyword optimization for eBay Cassini search if possible. Keep it under 80 characters. If the title is already good, keep it as-is or make minor improvements only.
+1. TITLE: Review the title. Fix any factual errors about the product. Improve keyword optimization for eBay Cassini search if possible. Keep it under 80 characters. The item condition "${condText}" MUST appear at the very END of the title as the last word(s), never in the middle or beginning. If the title is already good, keep it as-is or make minor improvements only.
 2. DESCRIPTION: Review the HTML description. Fix any factual inaccuracies about this specific product (specs, features, compatibility). Add any missing important details or keywords. Improve readability and buyer appeal if needed. Keep the same HTML structure and styling — do not change the layout, colors, or CSS.${userTemplate ? ' The listing must continue to match the user\'s saved HTML template design.' : ''} Only modify the text content where it genuinely needs improvement.
 3. If something is already accurate and well-written, KEEP IT. Do not change things just to change them.
 
@@ -2780,8 +2787,8 @@ HTML:
         });
 
         // Show all aspects from eBay — required first, then recommended, then optional
-        // Hide Model — AI picks wrong values too often, causes listing issues
-        const shownAspects = aspects.filter(a => a.name !== 'Model');
+        // Force Model to render as a free-text field (not a dropdown)
+        const shownAspects = aspects.map(a => a.name === 'Model' ? { ...a, values: [], mode: 'FREE_TEXT' } : a);
         currentAspects = shownAspects;
 
         // Saved values from previous edits
@@ -3132,7 +3139,8 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
         if (ua !== ub) return ua - ub;
         return a.name.localeCompare(b.name);
       });
-      const shownAspects = aspects;
+      // Force Model to free-text so AI provides the actual model name instead of picking from a dropdown list
+      const shownAspects = aspects.map(a => a.name === 'Model' ? { ...a, values: [], mode: 'FREE_TEXT' } : a);
 
       // 2. Build context for AI
       const productInfo = [

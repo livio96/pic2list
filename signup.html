@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pic2list - Sign Up</title>
+  <title>LazyListings - Sign Up</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -48,7 +48,7 @@
 </head>
 <body>
   <div class="auth-card">
-    <h1>pic2list</h1>
+    <h1>LazyListings</h1>
     <p class="subtitle">Create your account</p>
     <div class="error-msg" id="errorMsg"></div>
     <form id="signupForm">
@@ -67,8 +67,8 @@
         <input type="text" id="companyName">
       </div>
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="username" required autocomplete="username">
+        <label>Email</label>
+        <input type="email" id="email" required autocomplete="email" placeholder="you@example.com">
       </div>
       <div class="form-group">
         <label>Password <span class="optional">(min. 8 characters)</span></label>
@@ -108,7 +108,7 @@
             first_name: document.getElementById('firstName').value,
             last_name: document.getElementById('lastName').value,
             company_name: document.getElementById('companyName').value || null,
-            username: document.getElementById('username').value,
+            email: document.getElementById('email').value,
             password,
           }),
         });

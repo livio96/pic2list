@@ -52,6 +52,17 @@ app.use(session({
 app.use('/api/auth', authRoutes);
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 app.get('/signup.html', (req, res) => res.sendFile(path.join(__dirname, 'signup.html')));
+app.get('/reset-password.html', (req, res) => res.sendFile(path.join(__dirname, 'reset-password.html')));
+app.get('/landing.html', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
+app.get('/how-it-works.html', (req, res) => res.sendFile(path.join(__dirname, 'how-it-works.html')));
+
+// Root: show landing page for guests, dashboard for authenticated users
+app.get('/', (req, res) => {
+  if (req.session && req.session.userId) {
+    return res.sendFile(path.join(__dirname, 'index.html'));
+  }
+  res.sendFile(path.join(__dirname, 'landing.html'));
+});
 
 // ── Everything below requires auth ──
 app.use(requireAuth);
@@ -759,5 +770,5 @@ app.get('/api/ebay/price-range', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`\n  Pic2List running at http://localhost:${PORT}\n`);
+  console.log(`\n  LazyListings running at http://localhost:${PORT}\n`);
 });

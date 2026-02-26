@@ -13,7 +13,7 @@ router.get('/', requireAuth, async (req, res) => {
 
     // Load user's own profile
     const profileResult = await pool.query(
-      'SELECT first_name, last_name, company_name, username FROM users WHERE id = $1',
+      'SELECT first_name, last_name, company_name, email FROM users WHERE id = $1',
       [userId]
     );
     if (profileResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -37,7 +37,7 @@ router.get('/', requireAuth, async (req, res) => {
       first_name:       profile.first_name || '',
       last_name:        profile.last_name || '',
       company_name:     profile.company_name || '',
-      email:            profile.username || '',
+      email:            profile.email || '',
       example_template: owner.example_template || '',
       role:             role,
     };
@@ -73,7 +73,7 @@ router.put('/', requireAuth, async (req, res) => {
       ['first_name', first_name],
       ['last_name', last_name],
       ['company_name', company_name],
-      ['username', email],
+      ['email', email],
     ]) {
       if (val !== undefined) {
         profileUpdates.push(`${col} = $${idx}`);

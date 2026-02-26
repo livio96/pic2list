@@ -11,7 +11,7 @@ const VALID_ROLES = ['admin', 'publisher', 'operator'];
 router.get('/', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, first_name, last_name, username, role, account_id, created_at
+      `SELECT id, first_name, last_name, email, role, account_id, created_at
        FROM users
        WHERE account_id = $1
        ORDER BY created_at ASC`,
@@ -26,9 +26,9 @@ router.get('/', requireAuth, requireRole('admin'), async (req, res) => {
 
 // POST /api/users — create a sub-user
 router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
-  const { first_name, last_name, username, password, role } = req.body;
+  const { first_name, last_name, email, password, role } = req.body;
 
-  if (!first_name || !last_name || !username || !password) {
+  if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   if (password.length < 8) {
@@ -39,17 +39,17 @@ router.post('/', requireAuth, requireRole('admin'), async (req, res) => {
   }
 
   try {
-    const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username.trim()]);
+    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email.trim().toLowerCase()]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Username already taken' });
+      return res.status(409).json({ error: 'An account with this email already exists' });
     }
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     const result = await pool.query(
-      `INSERT INTO users (first_name, last_name, username, password_hash, role, account_id)
+      `INSERT INTO users (first_name, last_name, email, password_hash, role, account_id)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, first_name, last_name, username, role, created_at`,
-      [first_name.trim(), last_name.trim(), username.trim(), hash, role, req.session.accountId]
+       RETURNING id, first_name, last_name, email, role, created_at`,
+      [first_name.trim(), last_name.trim(), email.trim().toLowerCase(), hash, role, req.session.accountId]
     );
 
     res.json({ success: true, user: result.rows[0] });

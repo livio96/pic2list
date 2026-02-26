@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>pic2list - Log In</title>
+  <title>LazyListings - Log In</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -45,13 +45,13 @@
 </head>
 <body>
   <div class="auth-card">
-    <h1>pic2list</h1>
+    <h1>LazyListings</h1>
     <p class="subtitle">Log in to your account</p>
     <div class="error-msg" id="errorMsg"></div>
     <form id="loginForm">
       <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="username" required autocomplete="username">
+        <label>Email</label>
+        <input type="email" id="email" required autocomplete="email" placeholder="you@example.com">
       </div>
       <div class="form-group">
         <label>Password</label>
@@ -60,6 +60,7 @@
       <button type="submit" class="btn-primary" id="submitBtn">Log In</button>
     </form>
     <p class="footer-link">Don't have an account? <a href="/signup.html">Sign up</a></p>
+    <p class="footer-link" style="margin-top: 12px;"><a href="/reset-password.html">Forgot your password?</a></p>
   </div>
 
   <script>
@@ -75,7 +76,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: document.getElementById('username').value,
+            email: document.getElementById('email').value,
             password: document.getElementById('password').value,
           }),
         });

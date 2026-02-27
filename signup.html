@@ -44,6 +44,22 @@
     .footer-link { margin-top: 20px; text-align: center; font-size: 13px; color: #8b8fa3; }
     .footer-link a { color: #4f6ef7; text-decoration: none; font-weight: 600; }
     .footer-link a:hover { text-decoration: underline; }
+    .terms-group {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 20px; margin-top: 4px;
+    }
+    .terms-group input[type="checkbox"] {
+      margin-top: 3px; width: 16px; height: 16px; accent-color: #4f6ef7;
+      flex-shrink: 0; cursor: pointer;
+    }
+    .terms-group label {
+      font-size: 13px; color: #555b6e; line-height: 1.5; cursor: pointer;
+      text-transform: none; font-weight: 400; letter-spacing: 0;
+    }
+    .terms-group label a {
+      color: #4f6ef7; text-decoration: none; font-weight: 600;
+    }
+    .terms-group label a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -78,6 +94,10 @@
         <label>Confirm Password</label>
         <input type="password" id="confirmPassword" required autocomplete="new-password">
       </div>
+      <div class="terms-group">
+        <input type="checkbox" id="agreeTerms">
+        <label for="agreeTerms">I agree to the <a href="/terms.html" target="_blank">Terms and Conditions</a>, including granting LazyListings permission to create eBay listings on my behalf.</label>
+      </div>
       <button type="submit" class="btn-primary" id="submitBtn">Create Account</button>
     </form>
     <p class="footer-link">Already have an account? <a href="/login.html">Log in</a></p>
@@ -92,6 +112,11 @@
 
       const password = document.getElementById('password').value;
       const confirm = document.getElementById('confirmPassword').value;
+      if (!document.getElementById('agreeTerms').checked) {
+        errorMsg.textContent = 'You must agree to the Terms and Conditions to create an account.';
+        errorMsg.style.display = 'block';
+        return;
+      }
       if (password !== confirm) {
         errorMsg.textContent = 'Passwords do not match.';
         errorMsg.style.display = 'block';
@@ -110,6 +135,7 @@
             company_name: document.getElementById('companyName').value || null,
             email: document.getElementById('email').value,
             password,
+            terms_accepted: true,
           }),
         });
         const data = await resp.json();

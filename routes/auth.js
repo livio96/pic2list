@@ -9,9 +9,12 @@ const SALT_ROUNDS = 12;
 
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
-  const { first_name, last_name, company_name, email, password } = req.body;
+  const { first_name, last_name, company_name, email, password, terms_accepted } = req.body;
   if (!first_name || !last_name || !email || !password) {
     return res.status(400).json({ error: 'Missing required fields' });
+  }
+  if (!terms_accepted) {
+    return res.status(400).json({ error: 'You must agree to the Terms and Conditions' });
   }
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });

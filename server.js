@@ -56,6 +56,7 @@ app.get('/signup.html', (req, res) => res.sendFile(path.join(__dirname, 'signup.
 app.get('/reset-password.html', (req, res) => res.sendFile(path.join(__dirname, 'reset-password.html')));
 app.get('/landing.html', (req, res) => res.sendFile(path.join(__dirname, 'landing.html')));
 app.get('/how-it-works.html', (req, res) => res.sendFile(path.join(__dirname, 'how-it-works.html')));
+app.get('/terms.html', (req, res) => res.sendFile(path.join(__dirname, 'terms.html')));
 
 // Root: show landing page for guests, dashboard for authenticated users
 app.get('/', (req, res) => {

@@ -633,6 +633,78 @@ Rules:
   }
 });
 
+// ── LOT mode: identify individual items within lot image(s) ──
+app.post('/api/openrouter/identify-lot', async (req, res) => {
+  if (!OPENROUTER_API_KEY) return res.status(400).json({ error: { message: 'OpenRouter API key not configured in .env' } });
+
+  const { images } = req.body;
+  if (!images || images.length === 0) return res.status(400).json({ error: { message: 'No images provided' } });
+
+  try {
+    const imageContent = images.map((b64) => ({
+      type: 'image_url',
+      image_url: { url: `data:image/jpeg;base64,${b64}` }
+    }));
+
+    const prompt = `You will be analyzing ${images.length > 1 ? images.length + ' images that together show' : 'an image that contains'} multiple items (such as books on a shelf, products in a display, trading cards, or any collection of items visible in a photograph). Your task is to identify each individual item as accurately as possible and provide a descriptive title for each one.
+
+Your goal is to:
+1. Carefully examine all visible items in the image${images.length > 1 ? 's' : ''}
+2. Identify each distinct item individually
+3. Provide an accurate, descriptive title for each item
+
+Before providing your final answer, use the scratchpad below to work through your analysis:
+
+<scratchpad>
+In your scratchpad, you should:
+- Systematically scan through the image${images.length > 1 ? 's' : ''} from left to right, top to bottom (or in whatever logical order makes sense for the layout)
+- Note any visible text, labels, titles, or identifying features on each item
+- Count the total number of distinct items you can identify
+- For items where text is partially visible or unclear, note what you can see and make reasonable inferences
+- Group items by type if that helps with organization (e.g., all books together, all cards together)
+- Note any items that are too obscured or unclear to identify with confidence
+</scratchpad>
+
+When identifying items, follow these guidelines:
+- For books: Include the full title as visible on the spine or cover, and author name if visible
+- For products: Include brand name, product name, and any distinguishing features (size, flavor, color, etc.)
+- For cards: Include the card name, set name, or any identifying numbers/text visible
+- For unlabeled items: Provide a clear descriptive title based on what the item appears to be
+- If an item is partially obscured but you can make a reasonable identification, note this with phrases like "appears to be" or "partially visible"
+- If an item cannot be identified at all, note it as "Unidentifiable item" with a brief description of what's visible
+
+Your final answer MUST be ONLY valid JSON, no markdown, no explanation outside the JSON. Use this exact format:
+{
+  "itemCount": <number>,
+  "items": [
+    { "index": 1, "title": "<descriptive title>", "details": "<additional details or empty string>" },
+    { "index": 2, "title": "<descriptive title>", "details": "<additional details or empty string>" }
+  ]
+}
+
+Rules:
+- Every distinct item visible in the image${images.length > 1 ? 's' : ''} must be listed
+- "title" should be the most specific, descriptive name you can determine (brand + product name + distinguishing features)
+- "details" should include author, condition notes, or any extra info in parenthetical style — leave as "" if nothing extra to note
+- Be thorough: scan every part of the image${images.length > 1 ? 's' : ''}, do not skip items just because they are small or partially visible`;
+
+    const maxTokens = Math.max(2000, images.length * 1500);
+    const result = await callGemini([{ type: 'text', text: prompt }, ...imageContent], maxTokens);
+
+    // Normalize: ensure we have the expected format
+    const itemCount = result.itemCount || (result.items ? result.items.length : 0);
+    const items = (result.items || []).map((item, i) => ({
+      index: item.index || i + 1,
+      title: item.title || `Unidentified item ${i + 1}`,
+      details: item.details || '',
+    }));
+
+    res.json({ itemCount, items });
+  } catch (err) {
+    res.status(500).json({ error: { message: err.message } });
+  }
+});
+
 // ── OpenAI proxy ──
 app.post('/api/openai/chat', async (req, res) => {
   if (!OPENAI_API_KEY) return res.status(400).json({ error: { message: 'OpenAI API key not configured in .env' } });

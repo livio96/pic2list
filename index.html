@@ -1238,6 +1238,11 @@
       statusText.textContent = ''; statusText.style.color = '';
       resultsSection.style.display = 'none';
       productTableBody.innerHTML = '';
+      // Reset to single mode
+      uploadMode = 'single';
+      document.querySelectorAll('#modeToggle button').forEach(b => b.classList.remove('active'));
+      document.querySelector('#modeToggle button[data-mode="single"]').classList.add('active');
+      updateModeUI();
     });
 
     // ═══════════════════════════════════════
@@ -1362,6 +1367,7 @@
     submitBtn.addEventListener('click', async () => {
       if (imageFiles.length === 0) return;
       submitBtn.disabled = true;
+      document.querySelectorAll('#modeToggle button').forEach(b => b.disabled = true);
 
       try {
         const base64Images = imageFiles.map(img => img.base64);
@@ -1380,6 +1386,7 @@
 
           if (items.length === 0) {
             statusText.textContent = 'No items identified in the lot image(s). Try a clearer photo.';
+            document.querySelectorAll('#modeToggle button').forEach(b => b.disabled = false);
             submitBtn.disabled = false;
             return;
           }
@@ -1477,9 +1484,11 @@
         }
       } catch (err) {
         statusText.textContent = `Error: ${err.message}`;
+        document.querySelectorAll('#modeToggle button').forEach(b => b.disabled = false);
         submitBtn.disabled = false;
         return;
       }
+      document.querySelectorAll('#modeToggle button').forEach(b => b.disabled = false);
       submitBtn.disabled = false;
     });
 

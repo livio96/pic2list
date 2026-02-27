@@ -95,6 +95,57 @@
     .spinner-sm { width: 12px; height: 12px; border-width: 1.5px; margin-right: 5px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Mode toggle */
+    .mode-toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .mode-toggle {
+      display: flex;
+      background: #e9ecef;
+      border-radius: 12px;
+      padding: 4px;
+      gap: 2px;
+    }
+    .mode-toggle button {
+      padding: 10px 28px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: transparent;
+      color: #8b8fa3;
+    }
+    .mode-toggle button.active {
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+    .mode-toggle button[data-mode="single"].active {
+      background: #4f6ef7;
+    }
+    .mode-toggle button[data-mode="lot"].active {
+      background: #f59e0b;
+    }
+    .mode-toggle button:hover:not(.active) {
+      color: #3a3f5c;
+      background: #f4f6f9;
+    }
+    .lot-badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
     /* ══════════════════════════════════════
        Product Table
        ══════════════════════════════════════ */
@@ -643,6 +694,12 @@
   </header>
 
   <div class="container">
+    <div class="mode-toggle-wrap" id="modeToggleWrap">
+      <div class="mode-toggle" id="modeToggle">
+        <button data-mode="single" class="active">Single Items</button>
+        <button data-mode="lot">LOT <span class="lot-badge">MULTI</span></button>
+      </div>
+    </div>
     <div class="drop-zone" id="dropZone">
       <h2>Drop images here or click to browse</h2>
       <p>Upload multiple photos — they'll be grouped by product automatically</p>

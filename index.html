@@ -1362,64 +1362,119 @@
     submitBtn.addEventListener('click', async () => {
       if (imageFiles.length === 0) return;
       submitBtn.disabled = true;
-      const totalImages = imageFiles.length;
-      if (totalImages >= 10) {
-        statusText.innerHTML = `<span class="spinner"></span>Analyzing ${totalImages} images...`;
-      } else {
-        statusText.innerHTML = '<span class="spinner"></span>Analyzing & grouping images with AI...';
-      }
 
       try {
         const base64Images = imageFiles.map(img => img.base64);
-        const resp = await apiFetch('/api/openrouter/identify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: base64Images })
-        });
-        if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `API error ${resp.status}`); }
-        const data = await resp.json();
-        let groups = data.groups || [];
-        const suggestedBundles = data.suggestedBundles || [];
 
-        // Show bundle suggestions if any (filter out invalid references)
-        const validBundles = suggestedBundles.filter(b =>
-          groups[b.mainGroupId] && b.accessoryGroupIds.every(id => groups[id] != null)
-        );
-        if (validBundles.length > 0) {
-          statusText.innerHTML = 'Review suggested bundles...';
-          const accepted = await showBundleSuggestions(groups, validBundles);
-          if (accepted.size > 0) {
-            groups = applyBundleMerges(groups, validBundles, accepted);
+        if (uploadMode === 'lot') {
+          // === LOT MODE: identify individual items from lot photo(s) ===
+          statusText.innerHTML = '<span class="spinner"></span>Analyzing lot — identifying individual items...';
+          const resp = await apiFetch('/api/openrouter/identify-lot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: base64Images })
+          });
+          if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `API error ${resp.status}`); }
+          const data = await resp.json();
+          const items = data.items || [];
+
+          if (items.length === 0) {
+            statusText.textContent = 'No items identified in the lot image(s). Try a clearer photo.';
+            submitBtn.disabled = false;
+            return;
           }
+
+          statusText.innerHTML = `<span class="spinner"></span>Found ${items.length} items — building drafts...`;
+
+          // Convert LOT items into clusterData format (one "cluster" per item, all images shared)
+          clusterData = items.map((item) => {
+            // Each item gets ALL uploaded images (since we can't crop individuals from the lot photo)
+            const cluster = imageFiles.map((img, i) => ({
+              index: i,
+              img,
+              response: {},
+            }));
+            const title = item.details ? `${item.title} (${item.details})` : item.title;
+            const brand = (title.match(/^(\S+)/)?.[1]) || '';
+            return {
+              cluster,
+              productName: title,
+              confidence: 70,
+              brand,
+              topLabels: [],
+              topWeb: [],
+              topLogos: [],
+              generatedTitle: null, generatedHtml: null,
+              suggestedCategoryId: null, suggestedCategoryName: null,
+              suggestedBrand: null, suggestedType: null, suggestedMpn: null,
+              ebayItemId: null, rejected: false,
+              status: 'pending',
+            };
+          });
+
+          renderProductTable(clusterData);
+          await createDraftsInDB();
+          statusText.innerHTML = `Identified <strong>${items.length} items</strong> from lot. Review and generate listings below.`;
+          submitBtn.disabled = false;
+        } else {
+          // === SINGLE MODE: existing behavior ===
+          const totalImages = imageFiles.length;
+          if (totalImages >= 10) {
+            statusText.innerHTML = `<span class="spinner"></span>Analyzing ${totalImages} images...`;
+          } else {
+            statusText.innerHTML = '<span class="spinner"></span>Analyzing & grouping images with AI...';
+          }
+
+          const resp = await apiFetch('/api/openrouter/identify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ images: base64Images })
+          });
+          if (!resp.ok) { const err = await resp.json(); throw new Error(err.error?.message || `API error ${resp.status}`); }
+          const data = await resp.json();
+          let groups = data.groups || [];
+          const suggestedBundles = data.suggestedBundles || [];
+
+          // Show bundle suggestions if any (filter out invalid references)
+          const validBundles = suggestedBundles.filter(b =>
+            groups[b.mainGroupId] && b.accessoryGroupIds.every(id => groups[id] != null)
+          );
+          if (validBundles.length > 0) {
+            statusText.innerHTML = 'Review suggested bundles...';
+            const accepted = await showBundleSuggestions(groups, validBundles);
+            if (accepted.size > 0) {
+              groups = applyBundleMerges(groups, validBundles, accepted);
+            }
+          }
+
+          statusText.innerHTML = '<span class="spinner"></span>Building product list...';
+
+          clusterData = groups.map(group => {
+            const cluster = group.imageIndices.map(i => ({
+              index: i,
+              img: imageFiles[i],
+              response: {},
+            }));
+            const brand = (group.productName.match(/^(\S+)/)?.[1]) || '';
+            return {
+              cluster,
+              productName: group.productName,
+              confidence: group.confidence || 0,
+              brand,
+              topLabels: [],
+              topWeb: [],
+              topLogos: [],
+              generatedTitle: null, generatedHtml: null,
+              suggestedCategoryId: null, suggestedCategoryName: null,
+              suggestedBrand: null, suggestedType: null, suggestedMpn: null,
+              ebayItemId: null, rejected: false,
+              status: 'pending',
+            };
+          });
+
+          renderProductTable(clusterData);
+          await createDraftsInDB();
         }
-
-        statusText.innerHTML = '<span class="spinner"></span>Building product list...';
-
-        clusterData = groups.map(group => {
-          const cluster = group.imageIndices.map(i => ({
-            index: i,
-            img: imageFiles[i],
-            response: {},
-          }));
-          const brand = (group.productName.match(/^(\S+)/)?.[1]) || '';
-          return {
-            cluster,
-            productName: group.productName,
-            confidence: group.confidence || 0,
-            brand,
-            topLabels: [],
-            topWeb: [],
-            topLogos: [],
-            generatedTitle: null, generatedHtml: null,
-            suggestedCategoryId: null, suggestedCategoryName: null,
-            suggestedBrand: null, suggestedType: null, suggestedMpn: null,
-            ebayItemId: null, rejected: false,
-            status: 'pending',
-          };
-        });
-
-        renderProductTable(clusterData);
-        await createDraftsInDB();
       } catch (err) {
         statusText.textContent = `Error: ${err.message}`;
         submitBtn.disabled = false;

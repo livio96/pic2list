@@ -653,17 +653,7 @@ Your goal is to:
 2. Identify each distinct item individually
 3. Provide an accurate, descriptive title for each item
 
-Before providing your final answer, use the scratchpad below to work through your analysis:
-
-<scratchpad>
-In your scratchpad, you should:
-- Systematically scan through the image${images.length > 1 ? 's' : ''} from left to right, top to bottom (or in whatever logical order makes sense for the layout)
-- Note any visible text, labels, titles, or identifying features on each item
-- Count the total number of distinct items you can identify
-- For items where text is partially visible or unclear, note what you can see and make reasonable inferences
-- Group items by type if that helps with organization (e.g., all books together, all cards together)
-- Note any items that are too obscured or unclear to identify with confidence
-</scratchpad>
+Carefully scan the image${images.length > 1 ? 's' : ''} systematically from left to right, top to bottom. Note any visible text, labels, titles, or identifying features on each item. Count all distinct items.
 
 When identifying items, follow these guidelines:
 - For books: Include the full title as visible on the spine or cover, and author name if visible

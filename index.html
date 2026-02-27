@@ -905,6 +905,32 @@
     let totalRawBytes = 0;
     const MAX_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB
 
+    let uploadMode = 'single'; // 'single' or 'lot'
+
+    // Mode toggle
+    document.querySelectorAll('#modeToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#modeToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        uploadMode = btn.dataset.mode;
+        updateModeUI();
+      });
+    });
+
+    function updateModeUI() {
+      const dzTitle = dropZone.querySelector('h2');
+      const dzDesc = dropZone.querySelector('p');
+      if (uploadMode === 'lot') {
+        dzTitle.textContent = 'Drop LOT image(s) here or click to browse';
+        dzDesc.textContent = "Upload photos of a lot — we'll identify every individual item";
+        submitBtn.textContent = 'Identify Items in Lot';
+      } else {
+        dzTitle.textContent = 'Drop images here or click to browse';
+        dzDesc.textContent = "Upload multiple photos — they'll be grouped by product automatically";
+        submitBtn.textContent = 'Identify & Group Products';
+      }
+    }
+
     function formatBytes(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';

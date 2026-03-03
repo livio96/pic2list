@@ -944,6 +944,7 @@ app.get('/api/ebay/sold-listings', async (req, res) => {
       condition: item.condition || 'Unknown',
       type: item.buyingOptions?.includes('AUCTION') ? 'Auction' : 'Fixed',
       url: item.itemWebUrl || '',
+      image: item.image?.imageUrl || '',
     })).filter(l => l.price > 0);
 
     if (listings.length === 0) {

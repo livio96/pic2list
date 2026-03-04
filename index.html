@@ -864,7 +864,7 @@
   <div class="sold-modal-overlay" id="soldModalOverlay">
     <div class="sold-modal" role="dialog" aria-modal="true" aria-labelledby="soldModalTitle">
       <div class="sold-modal-header">
-        <h3 id="soldModalTitle">📊 Price Research</h3>
+        <h3 id="soldModalTitle">📊 Live Prices</h3>
         <button class="modal-close" id="soldModalClose">&times;</button>
       </div>
       <div class="sold-stats-bar" id="soldStatsBar"></div>
@@ -1706,7 +1706,7 @@
           <div class="price-cell-wrap">
             <input type="number" class="cell-price-input" id="price-${ci}" placeholder="0.00" min="0.01" step="0.01" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}>
             <!-- Always shown: price research is useful regardless of listing status -->
-            <button class="sold-research-btn" id="soldResearchBtn-${ci}">📊 Price Research</button>
+            <button class="sold-research-btn" id="soldResearchBtn-${ci}">📊 Live Prices</button>
             <button class="sold-scrape-btn" id="soldScrapeBtn-${ci}">💰 Sold Listings</button>
             <div id="priceRange-${ci}"></div>
           </div>
@@ -1976,7 +1976,7 @@
         alert('Error: ' + err.message);
       }
 
-      btn.textContent = '📊 Price Research';
+      btn.textContent = '📊 Live Prices';
       btn.disabled = false;
     }
 

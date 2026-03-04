@@ -2073,7 +2073,7 @@
             <td><a href="${l.url.startsWith('https://') ? l.url : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
             <td>${escapeHtml(l.condition)}</td>
             <td class="sold-price">$${l.price.toFixed(2)}</td>
-            <td style="color:#8b8fa3">${l.shippingLabel || 'Free'}</td>
+            <td style="color:#8b8fa3">${escapeHtml(l.shippingLabel || 'Free')}</td>
             <td style="color:#8b8fa3">${escapeHtml(l.soldDate || '')}</td>
           </tr>
         `).join('');

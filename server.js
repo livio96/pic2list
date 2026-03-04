@@ -4,6 +4,7 @@ const path = require('path');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const pool = require('./db');
+const cheerio = require('cheerio');
 const { requireAuth, requireRole, loadUserConfig } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const configRoutes = require('./routes/config');
@@ -971,6 +972,123 @@ app.get('/api/ebay/sold-listings', async (req, res) => {
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
+  }
+});
+
+// ── Sold listings scraper (actual sold data from eBay search page) ──
+app.get('/api/ebay/sold-scrape', requireAuth, loadUserConfig, async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.json({ success: false, error: 'Missing search query (q)' });
+
+  try {
+    const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1&_ipg=120&_sop=13`;
+
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+
+    if (!resp.ok) {
+      return res.json({ success: false, error: `eBay returned status ${resp.status}` });
+    }
+
+    const html = await resp.text();
+    const $ = cheerio.load(html);
+
+    const listings = [];
+
+    $('li[data-listingid]').each((_, el) => {
+      const card = $(el);
+
+      // Title
+      const title = card.find('.s-card__title span').first().text().trim();
+      if (!title) return;
+
+      // Price
+      const priceText = card.find('.s-card__price').first().text().trim();
+      const priceRange = priceText.match(/\$([\d,]+\.?\d*)\s*to\s*\$([\d,]+\.?\d*)/);
+      let price;
+      if (priceRange) {
+        price = (parseFloat(priceRange[1].replace(/,/g, '')) + parseFloat(priceRange[2].replace(/,/g, ''))) / 2;
+      } else {
+        const priceMatch = priceText.match(/\$([\d,]+\.?\d*)/);
+        price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0;
+      }
+      if (price <= 0) return;
+
+      // Sold date
+      const cardText = card.text();
+      const dateMatch = cardText.match(/Sold\s+([A-Z][a-z]+\s+\d+,\s+\d{4})/);
+      const soldDate = dateMatch ? dateMatch[1].trim() : '';
+
+      // Condition
+      const conditionText = card.find('.s-card__subtitle span').first().text().trim();
+      const condition = conditionText.replace(/\s*·\s*$/, '').trim() || 'Unknown';
+
+      // Shipping
+      const shippingText = cardText.match(/(Free delivery|[\+]?\$[\d.]+\s*delivery)/i);
+      let shipping = 0;
+      let shippingLabel = 'Free';
+      if (shippingText) {
+        if (shippingText[1].toLowerCase().includes('free')) {
+          shipping = 0;
+          shippingLabel = 'Free';
+        } else {
+          const shipMatch = shippingText[1].match(/\$([\d.]+)/);
+          shipping = shipMatch ? parseFloat(shipMatch[1]) : 0;
+          shippingLabel = `$${shipping.toFixed(2)}`;
+        }
+      }
+
+      // Image
+      const imgEl = card.find('img').first();
+      const image = imgEl.attr('src') || imgEl.attr('data-defer-load') || '';
+
+      // URL (clean, no tracking params)
+      const linkEl = card.find('a[href*="/itm/"]').first();
+      const itemUrl = linkEl.attr('href') || '';
+      const cleanUrl = itemUrl.split('?')[0];
+
+      listings.push({
+        title,
+        price: +price.toFixed(2),
+        shipping,
+        shippingLabel,
+        soldDate,
+        condition,
+        url: cleanUrl,
+        image,
+      });
+    });
+
+    if (listings.length === 0) {
+      return res.json({ success: true, count: 0, stats: null, listings: [] });
+    }
+
+    const prices = listings.map(l => l.price).sort((a, b) => a - b);
+    const low = prices[0];
+    const high = prices[prices.length - 1];
+    const avg = prices.reduce((s, p) => s + p, 0) / prices.length;
+    const mid = Math.floor(prices.length / 2);
+    const median = prices.length % 2 === 0 ? (prices[mid - 1] + prices[mid]) / 2 : prices[mid];
+
+    res.json({
+      success: true,
+      count: listings.length,
+      stats: {
+        avg: +avg.toFixed(2),
+        median: +median.toFixed(2),
+        low: +low.toFixed(2),
+        high: +high.toFixed(2),
+      },
+      listings,
+    });
+  } catch (err) {
+    console.error('Sold scrape error:', err);
+    res.json({ success: false, error: 'Scraping temporarily unavailable' });
   }
 });
 

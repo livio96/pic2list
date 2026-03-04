@@ -2069,8 +2069,8 @@
       } else if (isScrape) {
         tbody.innerHTML = data.listings.map(l => `
           <tr>
-            <td>${l.image ? `<img src="${l.image}" alt="" class="sold-img" loading="lazy">` : ''}</td>
-            <td><a href="${l.url.startsWith('https://') ? l.url : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
+            <td>${l.image && l.image.startsWith('https://') ? `<img src="${escapeHtml(l.image)}" alt="" class="sold-img" loading="lazy">` : ''}</td>
+            <td><a href="${l.url.startsWith('https://') ? escapeHtml(l.url) : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
             <td>${escapeHtml(l.condition)}</td>
             <td class="sold-price">$${l.price.toFixed(2)}</td>
             <td style="color:#8b8fa3">${escapeHtml(l.shippingLabel || 'Free')}</td>
@@ -2080,8 +2080,8 @@
       } else {
         tbody.innerHTML = data.listings.map(l => `
           <tr>
-            <td>${l.image ? `<img src="${l.image}" alt="" class="sold-img" loading="lazy">` : ''}</td>
-            <td><a href="${l.url.startsWith('https://') ? l.url : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
+            <td>${l.image && l.image.startsWith('https://') ? `<img src="${escapeHtml(l.image)}" alt="" class="sold-img" loading="lazy">` : ''}</td>
+            <td><a href="${l.url.startsWith('https://') ? escapeHtml(l.url) : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
             <td>${escapeHtml(l.condition)}</td>
             <td style="color:#8b8fa3">${escapeHtml(l.type)}</td>
             <td class="sold-price">$${l.price.toFixed(2)}</td>

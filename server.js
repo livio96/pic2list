@@ -976,9 +976,18 @@ app.get('/api/ebay/sold-listings', async (req, res) => {
 });
 
 // ── Sold listings scraper (actual sold data from eBay search page) ──
+const scrapeCache = new Map();
+const SCRAPE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 app.get('/api/ebay/sold-scrape', requireAuth, loadUserConfig, async (req, res) => {
   const { q } = req.query;
   if (!q) return res.json({ success: false, error: 'Missing search query (q)' });
+
+  const cacheKey = q.toLowerCase().trim();
+  const cached = scrapeCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < SCRAPE_CACHE_TTL) {
+    return res.json(cached.data);
+  }
 
   try {
     const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1&_ipg=120&_sop=13`;
@@ -1075,7 +1084,7 @@ app.get('/api/ebay/sold-scrape', requireAuth, loadUserConfig, async (req, res) =
     const mid = Math.floor(prices.length / 2);
     const median = prices.length % 2 === 0 ? (prices[mid - 1] + prices[mid]) / 2 : prices[mid];
 
-    res.json({
+    const result = {
       success: true,
       count: listings.length,
       stats: {
@@ -1085,7 +1094,10 @@ app.get('/api/ebay/sold-scrape', requireAuth, loadUserConfig, async (req, res) =
         high: +high.toFixed(2),
       },
       listings,
-    });
+    };
+
+    scrapeCache.set(cacheKey, { ts: Date.now(), data: result });
+    res.json(result);
   } catch (err) {
     console.error('Sold scrape error:', err);
     res.json({ success: false, error: 'Scraping temporarily unavailable' });

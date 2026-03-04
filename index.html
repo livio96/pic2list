@@ -262,6 +262,12 @@
       white-space: nowrap; transition: all 0.15s;
     }
     .sold-research-btn:hover { background: #f0fdf4; border-color: #16a34a; }
+    .sold-scrape-btn {
+      background: none; border: 1px solid #d1d5db; border-radius: 6px;
+      color: #4f6ef7; font-size: 11px; cursor: pointer; padding: 2px 6px;
+      white-space: nowrap; transition: all 0.15s;
+    }
+    .sold-scrape-btn:hover { background: #eef2ff; border-color: #4f6ef7; }
 
     /* Sold Research Modal */
     .sold-modal-overlay {
@@ -864,7 +870,7 @@
       <div class="sold-stats-bar" id="soldStatsBar"></div>
       <div class="sold-table-wrap">
         <table class="sold-table">
-          <thead>
+          <thead id="soldTableHead">
             <tr>
               <th style="width:48px"></th>
               <th style="width:40%">Title</th>
@@ -1701,6 +1707,7 @@
             <input type="number" class="cell-price-input" id="price-${ci}" placeholder="0.00" min="0.01" step="0.01" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}>
             <!-- Always shown: price research is useful regardless of listing status -->
             <button class="sold-research-btn" id="soldResearchBtn-${ci}">📊 Price Research</button>
+            <button class="sold-scrape-btn" id="soldScrapeBtn-${ci}">💰 Sold Listings</button>
             <div id="priceRange-${ci}"></div>
           </div>
         </td>
@@ -1891,6 +1898,8 @@
       if (prBtn) prBtn.addEventListener('click', () => lookupPriceRange(ci));
       const soldBtn = document.getElementById(`soldResearchBtn-${ci}`);
       if (soldBtn) soldBtn.addEventListener('click', () => soldResearch(ci));
+      const scrapeBtn = document.getElementById(`soldScrapeBtn-${ci}`);
+      if (scrapeBtn) scrapeBtn.addEventListener('click', () => soldScrapeResearch(ci));
 
       // Thumb click opens modal
       const thumbs = document.querySelectorAll(`#row-${ci} .cell-thumb`);
@@ -1971,8 +1980,56 @@
       btn.disabled = false;
     }
 
-    function openSoldModal(query, data) {
-      document.getElementById('soldModalTitle').textContent = `📊 eBay Market Prices: ${query}`;
+    // ── Sold listings scraper (actual sold data) ──
+    async function soldScrapeResearch(ci) {
+      const meta = clusterData[ci];
+      const query = meta.generatedTitle || meta.productName || '';
+      if (!query) { alert('No product name to search for.'); return; }
+
+      const btn = document.getElementById(`soldScrapeBtn-${ci}`);
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+
+      try {
+        const params = new URLSearchParams({ q: query });
+        const resp = await apiFetch(`/api/ebay/sold-scrape?${params}`);
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error);
+
+        openSoldModal(query, data, true);
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+
+      btn.textContent = '💰 Sold Listings';
+      btn.disabled = false;
+    }
+
+    function openSoldModal(query, data, isScrape = false) {
+      const titlePrefix = isScrape ? '💰 eBay Sold Listings' : '📊 eBay Market Prices';
+      document.getElementById('soldModalTitle').textContent = `${titlePrefix}: ${query}`;
+
+      // Update table headers based on mode
+      const thead = document.getElementById('soldTableHead');
+      if (isScrape) {
+        thead.innerHTML = `<tr>
+          <th style="width:48px"></th>
+          <th style="width:35%">Title</th>
+          <th>Condition</th>
+          <th>Price</th>
+          <th>Shipping</th>
+          <th>Sold Date</th>
+        </tr>`;
+      } else {
+        thead.innerHTML = `<tr>
+          <th style="width:48px"></th>
+          <th style="width:40%">Title</th>
+          <th>Condition</th>
+          <th>Type</th>
+          <th>Price</th>
+        </tr>`;
+      }
 
       // Stats bar
       const statsBar = document.getElementById('soldStatsBar');
@@ -1982,7 +2039,7 @@
         const s = data.stats;
         statsBar.innerHTML = `
           <div class="sold-stat">
-            <div class="sold-stat-label">Listings</div>
+            <div class="sold-stat-label">${isScrape ? 'Sold' : 'Listings'}</div>
             <div class="sold-stat-value">${data.count}</div>
           </div>
           <div class="sold-stat">
@@ -2006,8 +2063,20 @@
 
       // Table body
       const tbody = document.getElementById('soldTableBody');
+      const colCount = isScrape ? 6 : 5;
       if (data.count === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="sold-empty">No listings found. Try broadening the search.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colCount}" class="sold-empty">No listings found. Try broadening the search.</td></tr>`;
+      } else if (isScrape) {
+        tbody.innerHTML = data.listings.map(l => `
+          <tr>
+            <td>${l.image ? `<img src="${l.image}" alt="" class="sold-img" loading="lazy">` : ''}</td>
+            <td><a href="${l.url.startsWith('https://') ? l.url : '#'}" target="_blank" rel="noopener" class="sold-title-link">${escapeHtml(l.title)}</a></td>
+            <td>${escapeHtml(l.condition)}</td>
+            <td class="sold-price">$${l.price.toFixed(2)}</td>
+            <td style="color:#8b8fa3">${l.shippingLabel || 'Free'}</td>
+            <td style="color:#8b8fa3">${escapeHtml(l.soldDate || '')}</td>
+          </tr>
+        `).join('');
       } else {
         tbody.innerHTML = data.listings.map(l => `
           <tr>

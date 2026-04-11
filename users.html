@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LazyListings - Manage Users</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      padding: 18px 32px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 14px;
+    }
+    header h1 { font-size: 24px; font-weight: 800; color: #4f6ef7; letter-spacing: -0.5px; }
+    header span { font-size: 13px; color: #8b8fa3; margin-top: 2px; }
+    header nav { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+    header nav a { font-size: 13px; color: #4f6ef7; text-decoration: none; font-weight: 600; }
+    header nav a:hover { text-decoration: underline; }
+    .btn-sm {
+      padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; color: #555b6e; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-sm:hover { background: #f4f6f9; }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 32px; }
+
+    .card {
+      background: #fff; border-radius: 16px; padding: 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.04); margin-bottom: 24px;
+    }
+    .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .card .desc { font-size: 13px; color: #8b8fa3; margin-bottom: 24px; }
+
+    .role-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .role-admin { background: #dbeafe; color: #2563eb; }
+    .role-publisher { background: #ecfdf5; color: #059669; }
+    .role-operator { background: #fef3c7; color: #d97706; }
+
+    .team-member {
+      display: flex; align-items: center; gap: 14px; padding: 14px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .team-member:last-child { border-bottom: none; }
+
+    .member-avatar {
+      width: 36px; height: 36px; border-radius: 50%; background: #4f6ef7;
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .member-info { flex: 1; }
+    .member-info .name { font-size: 14px; font-weight: 600; }
+    .member-info .user-email { color: #8b8fa3; font-size: 12px; }
+    .member-info .date { color: #b0b5c3; font-size: 11px; margin-top: 2px; }
+
+    .member-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-danger-sm {
+      padding: 5px 12px; border: 1px solid #fecaca; border-radius: 6px;
+      background: #fff; color: #dc2626; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-danger-sm:hover { background: #fef2f2; }
+
+    .role-select {
+      padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 6px;
+      font-size: 11px; outline: none; color: #1a1a2e; background: #fff;
+      cursor: pointer;
+    }
+    .role-select:focus { border-color: #4f6ef7; }
+
+    /* Add user form */
+    .form-section h3 {
+      font-size: 13px; font-weight: 700; color: #4f6ef7; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #eef1ff;
+    }
+    .form-field { margin-bottom: 14px; }
+    .form-field label {
+      display: block; font-size: 12px; font-weight: 700; color: #555b6e; margin-bottom: 5px;
+    }
+    .form-field input, .form-field select {
+      width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px;
+      font-size: 13px; outline: none; transition: border-color 0.15s; color: #1a1a2e;
+      font-family: inherit;
+    }
+    .form-field input:focus, .form-field select:focus { border-color: #4f6ef7; }
+    .form-field .hint { font-size: 11px; color: #8b8fa3; margin-top: 3px; }
+
+    .btn-primary {
+      padding: 10px 24px; border: none; border-radius: 10px;
+      background: #4f6ef7; color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #3b5de7; }
+    .btn-primary:disabled { background: #a0b0f0; cursor: not-allowed; }
+
+    .msg-success { font-size: 12px; color: #059669; margin-left: 12px; display: none; }
+    .msg-error { font-size: 12px; color: #dc2626; margin-left: 12px; display: none; }
+
+    .empty-state {
+      text-align: center; padding: 24px; color: #8b8fa3; font-size: 13px;
+    }
+    .listing-meter {
+      display: none; align-items: center; gap: 8px; padding: 4px 12px;
+      background: #f0f3ff; border-radius: 20px; font-size: 12px; font-weight: 600;
+      color: #3a3f5c; white-space: nowrap; cursor: pointer; position: relative;
+    }
+    .listing-meter:hover { background: #e4e9ff; }
+    .listing-meter .meter-icon { font-size: 14px; }
+    .listing-meter .meter-bar { width: 80px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+    .listing-meter .meter-fill { height: 100%; background: linear-gradient(90deg, #4f6ef7, #22c55e); border-radius: 4px; transition: width 0.6s ease; min-width: 0; }
+    .listing-meter .meter-text { color: #4f6ef7; }
+    .listing-meter.lifetime { background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border: 1px solid #bbf7d0; }
+    .listing-meter.lifetime:hover { background: #d1fae5; }
+    .listing-meter.lifetime .meter-text { color: #059669; font-weight: 700; }
+    .listing-meter.lifetime .meter-fill { background: linear-gradient(90deg, #22c55e, #10b981); }
+    .meter-popup {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0; width: 300px;
+      background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      padding: 20px; z-index: 1000; text-align: center; white-space: normal; cursor: default;
+    }
+    .meter-popup::before {
+      content: ''; position: absolute; top: -6px; right: 24px; width: 12px; height: 12px;
+      background: #fff; transform: rotate(45deg); box-shadow: -2px -2px 4px rgba(0,0,0,0.04);
+    }
+    .meter-popup.open { display: block; }
+    .meter-popup .popup-trophy { font-size: 36px; margin-bottom: 8px; }
+    .meter-popup .popup-title { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .meter-popup .popup-desc { font-size: 13px; color: #555b6e; line-height: 1.5; margin-bottom: 12px; }
+    .meter-popup .popup-progress { font-size: 20px; font-weight: 800; color: #4f6ef7; }
+    .meter-popup .popup-remaining { font-size: 12px; color: #8b8fa3; margin-top: 4px; }
+    .meter-popup.lifetime-popup .popup-progress { color: #059669; }
+    .meter-popup .popup-bar { width: 100%; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; margin: 12px 0 8px; }
+    .meter-popup .popup-bar-fill { height: 100%; background: linear-gradient(90deg, #4f6ef7, #22c55e); border-radius: 5px; transition: width 0.6s ease; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LazyListings</h1>
+    <span>Manage Users</span>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/config.html">Settings</a>
+      <a href="/how-it-works.html">How It Works</a>
+      <a href="/users.html">Manage Users</a>
+      <div class="listing-meter" id="listingMeter">
+        <span class="meter-icon">&#127942;</span>
+        <div class="meter-bar"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+        <span class="meter-text" id="meterText">0 / 1,000</span>
+        <div class="meter-popup" id="meterPopup">
+          <div class="popup-trophy" id="popupTrophy">&#127942;</div>
+          <div class="popup-title" id="popupTitle">Lifetime Free Membership</div>
+          <div class="popup-desc" id="popupDesc">List <strong>1,000 items</strong> on eBay and unlock <strong>lifetime free access</strong> to LazyListings — no subscription, ever.</div>
+          <div class="popup-bar"><div class="popup-bar-fill" id="popupBarFill" style="width:0%"></div></div>
+          <div class="popup-progress" id="popupProgress">0 / 1,000</div>
+          <div class="popup-remaining" id="popupRemaining">1,000 listings to go</div>
+        </div>
+      </div>
+      <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
+      <button class="btn-sm" id="logoutBtn">Log Out</button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <!-- Team members list -->
+    <div class="card">
+      <h2>Team Members</h2>
+      <p class="desc">Manage your team's access and roles.</p>
+      <div id="usersList">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Add user form -->
+    <div class="card">
+      <div class="form-section">
+        <h3>Add Team Member</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div class="form-field">
+            <label>First Name</label>
+            <input type="text" id="newUserFirst" placeholder="First name">
+          </div>
+          <div class="form-field">
+            <label>Last Name</label>
+            <input type="text" id="newUserLast" placeholder="Last name">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Email</label>
+          <input type="email" id="newUserEmail" placeholder="user@example.com">
+        </div>
+        <div class="form-field">
+          <label>Password</label>
+          <input type="password" id="newUserPassword" placeholder="Min 8 characters">
+        </div>
+        <div class="form-field">
+          <label>Role</label>
+          <select id="newUserRole">
+            <option value="operator">Operator - Can generate drafts only</option>
+            <option value="publisher">Publisher - Can generate and publish listings</option>
+            <option value="admin">Admin - Full access including user management</option>
+          </select>
+          <div class="hint">Operators can create drafts but cannot publish to eBay or change API keys. Publishers can also publish listings. Admins have full access.</div>
+        </div>
+        <div style="display:flex; align-items:center; margin-top:8px;">
+          <button class="btn-primary" id="addUserBtn">Add User</button>
+          <span class="msg-success" id="addUserMsg"></span>
+          <span class="msg-error" id="addUserErr"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentUserId = null;
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Auth check + load
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me');
+        const me = await resp.json();
+        if (!me.authenticated) { window.location.href = '/login.html'; return; }
+
+        // Only admins can access this page
+        if (me.role !== 'admin') {
+          window.location.href = '/';
+          return;
+        }
+
+        currentUserId = me.userId;
+
+        if (me.firstName) {
+          const avatar = document.getElementById('userAvatar');
+          avatar.textContent = me.firstName.charAt(0).toUpperCase();
+          avatar.title = me.firstName;
+          avatar.style.display = 'flex';
+        }
+
+        loadTeamMembers();
+        loadListingMeter();
+      } catch {
+        window.location.href = '/login.html';
+      }
+    })();
+
+    async function loadListingMeter() {
+      try {
+        const resp = await fetch('/api/listings/count');
+        const data = await resp.json();
+        if (!data.success) return;
+        const meter = document.getElementById('listingMeter');
+        const fill = document.getElementById('meterFill');
+        const text = document.getElementById('meterText');
+        const popup = document.getElementById('meterPopup');
+        const popupBarFill = document.getElementById('popupBarFill');
+        const popupProgress = document.getElementById('popupProgress');
+        const popupRemaining = document.getElementById('popupRemaining');
+        const popupTitle = document.getElementById('popupTitle');
+        const popupDesc = document.getElementById('popupDesc');
+        const popupTrophy = document.getElementById('popupTrophy');
+        const count = data.count || 0;
+        const goal = data.goal || 1000;
+        const pct = Math.min((count / goal) * 100, 100);
+        fill.style.width = pct + '%';
+        popupBarFill.style.width = pct + '%';
+        popupProgress.textContent = count.toLocaleString() + ' / ' + goal.toLocaleString();
+        if (data.lifetime_member) {
+          text.textContent = count.toLocaleString() + ' \u2014 Lifetime Member!';
+          meter.classList.add('lifetime');
+          popup.classList.add('lifetime-popup');
+          popupTrophy.textContent = '\uD83C\uDF89';
+          popupTitle.textContent = 'You earned Lifetime Free Membership!';
+          popupDesc.innerHTML = 'Congratulations! You\'ve listed <strong>' + count.toLocaleString() + ' items</strong> and unlocked <strong>lifetime free access</strong> to LazyListings.';
+          popupRemaining.textContent = 'Goal reached \u2014 you\'re a lifetime member!';
+          popupProgress.textContent = count.toLocaleString() + ' listings';
+        } else {
+          text.textContent = count.toLocaleString() + ' / ' + goal.toLocaleString();
+          const remaining = goal - count;
+          popupRemaining.textContent = remaining.toLocaleString() + ' listing' + (remaining !== 1 ? 's' : '') + ' to go';
+        }
+        meter.style.display = 'flex';
+      } catch (e) {
+        console.error('Failed to load listing meter:', e);
+      }
+    }
+
+    document.getElementById('listingMeter').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('meterPopup').classList.toggle('open');
+    });
+    document.addEventListener('click', () => {
+      document.getElementById('meterPopup').classList.remove('open');
+    });
+
+    async function loadTeamMembers() {
+      try {
+        const resp = await fetch('/api/users');
+        const data = await resp.json();
+        if (!data.success) return;
+
+        const list = document.getElementById('usersList');
+        if (data.users.length === 0) {
+          list.innerHTML = '<div class="empty-state">No team members yet.</div>';
+          return;
+        }
+
+        list.innerHTML = data.users.map(u => {
+          const isOwner = u.id === u.account_id;
+          const isSelf = u.id === currentUserId;
+          const roleBadgeClass = { admin: 'role-admin', publisher: 'role-publisher', operator: 'role-operator' }[u.role] || 'role-operator';
+          const roleLabel = { admin: 'Admin', publisher: 'Publisher', operator: 'Operator' }[u.role] || u.role;
+          const initial = (u.first_name || '?').charAt(0).toUpperCase();
+          const joined = new Date(u.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+          let actions = '';
+          if (isSelf) {
+            actions = '<span style="font-size:11px;color:#8b8fa3;">You</span>';
+          } else if (!isOwner) {
+            actions = `
+              <select class="role-select" onchange="changeRole(${u.id}, this.value)" data-uid="${u.id}">
+                <option value="operator" ${u.role === 'operator' ? 'selected' : ''}>Operator</option>
+                <option value="publisher" ${u.role === 'publisher' ? 'selected' : ''}>Publisher</option>
+                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+              <button class="btn-danger-sm" onclick="removeUser(${u.id})">Remove</button>
+            `;
+          }
+
+          return `
+            <div class="team-member">
+              <div class="member-avatar">${initial}</div>
+              <div class="member-info">
+                <div class="name">${escapeHtml(u.first_name)} ${escapeHtml(u.last_name)}</div>
+                <div class="user-email">${escapeHtml(u.email)}</div>
+                <div class="date">Joined ${joined}</div>
+              </div>
+              <span class="role-badge ${roleBadgeClass}">${roleLabel}</span>
+              <div class="member-actions">${actions}</div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load team members:', err);
+      }
+    }
+
+    async function changeRole(userId, newRole) {
+      try {
+        const resp = await fetch(`/api/users/${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: newRole }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          loadTeamMembers();
+        } else {
+          alert(data.error || 'Failed to update role');
+          loadTeamMembers();
+        }
+      } catch {
+        alert('Network error. Please try again.');
+        loadTeamMembers();
+      }
+    }
+
+    async function removeUser(id) {
+      if (!confirm('Remove this team member? Their listings will be preserved.')) return;
+      try {
+        const resp = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.success) {
+          loadTeamMembers();
+        } else {
+          alert(data.error || 'Failed to remove user');
+        }
+      } catch {
+        alert('Network error. Please try again.');
+      }
+    }
+
+    // Add user
+    document.getElementById('addUserBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('addUserBtn');
+      const msg = document.getElementById('addUserMsg');
+      const err = document.getElementById('addUserErr');
+      msg.style.display = 'none';
+      err.style.display = 'none';
+
+      const first_name = document.getElementById('newUserFirst').value.trim();
+      const last_name = document.getElementById('newUserLast').value.trim();
+      const email = document.getElementById('newUserEmail').value.trim();
+      const password = document.getElementById('newUserPassword').value;
+      const role = document.getElementById('newUserRole').value;
+
+      if (!first_name || !last_name || !email || !password) {
+        err.textContent = 'All fields are required.';
+        err.style.display = 'inline';
+        return;
+      }
+      if (password.length < 8) {
+        err.textContent = 'Password must be at least 8 characters.';
+        err.style.display = 'inline';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Adding...';
+
+      try {
+        const resp = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ first_name, last_name, email, password, role }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          msg.textContent = `${data.user.first_name} added as ${data.user.role}.`;
+          msg.style.display = 'inline';
+          setTimeout(() => { msg.style.display = 'none'; }, 3000);
+          document.getElementById('newUserFirst').value = '';
+          document.getElementById('newUserLast').value = '';
+          document.getElementById('newUserEmail').value = '';
+          document.getElementById('newUserPassword').value = '';
+          document.getElementById('newUserRole').value = 'operator';
+          loadTeamMembers();
+        } else {
+          err.textContent = data.error || 'Failed to add user.';
+          err.style.display = 'inline';
+        }
+      } catch {
+        err.textContent = 'Network error. Please try again.';
+        err.style.display = 'inline';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Add User';
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+  </script>
+</body>
+</html>

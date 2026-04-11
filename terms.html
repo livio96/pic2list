@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LazyListings - Terms and Conditions</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9; color: #1a1a2e; min-height: 100vh;
+      padding: 20px;
+    }
+    .terms-container {
+      max-width: 780px; width: 100%; margin: 0 auto; padding: 40px 0;
+    }
+    .terms-header {
+      text-align: center; margin-bottom: 40px;
+    }
+    .terms-header a {
+      font-size: 28px; font-weight: 800; color: #4f6ef7; letter-spacing: -0.5px;
+      text-decoration: none;
+    }
+    .terms-header h1 {
+      font-size: 32px; font-weight: 800; margin-top: 16px; color: #1a1a2e;
+    }
+    .terms-header .last-updated {
+      font-size: 13px; color: #8b8fa3; margin-top: 8px;
+    }
+    .terms-card {
+      background: #fff; border-radius: 16px; padding: 40px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+    }
+    .terms-card h2 {
+      font-size: 20px; font-weight: 700; color: #1a1a2e;
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 2px solid #eef1ff;
+    }
+    .terms-card h3 {
+      font-size: 16px; font-weight: 700; color: #333;
+      margin-top: 24px; margin-bottom: 10px;
+    }
+    .terms-card p {
+      font-size: 14px; line-height: 1.75; color: #444;
+      margin-bottom: 14px;
+    }
+    .terms-card ul {
+      margin: 12px 0 16px 24px;
+    }
+    .terms-card ul li {
+      font-size: 14px; line-height: 1.75; color: #444;
+      margin-bottom: 8px;
+    }
+    .highlight-box {
+      background: #eef1ff; border-radius: 12px; padding: 20px 24px;
+      margin: 20px 0; border-left: 4px solid #4f6ef7;
+    }
+    .highlight-box p {
+      color: #1a1a2e; font-weight: 500; margin-bottom: 0;
+    }
+    .warning-box {
+      background: #fff7ed; border-radius: 12px; padding: 20px 24px;
+      margin: 20px 0; border-left: 4px solid #f59e0b;
+    }
+    .warning-box p {
+      color: #92400e; font-weight: 500; margin-bottom: 0;
+    }
+    .back-link {
+      display: inline-block; margin-top: 20px; text-align: center;
+      width: 100%;
+    }
+    .back-link a {
+      color: #4f6ef7; text-decoration: none; font-weight: 600; font-size: 14px;
+    }
+    .back-link a:hover { text-decoration: underline; }
+    @media (max-width: 768px) {
+      .terms-card { padding: 24px; }
+      .terms-header h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="terms-container">
+    <div class="terms-header">
+      <a href="/">LazyListings</a>
+      <h1>Terms and Conditions</h1>
+      <p class="last-updated">Last updated: February 26, 2026</p>
+    </div>
+
+    <!-- Section 1: Introduction -->
+    <div class="terms-card">
+      <h2>1. Introduction and Acceptance</h2>
+      <p>Welcome to LazyListings ("we," "our," "us," or the "Service"). LazyListings is a web-based application designed to help eBay sellers create and publish product listings more efficiently using artificial intelligence and automation tools.</p>
+      <p>By creating an account and using LazyListings, you ("you," "your," or the "User") agree to be bound by these Terms and Conditions in their entirety. If you do not agree to these terms, you must not create an account or use the Service.</p>
+      <p>These Terms and Conditions constitute a legally binding agreement between you and LazyListings. Please read them carefully before proceeding with account registration.</p>
+    </div>
+
+    <!-- Section 2: How the Service Works -->
+    <div class="terms-card">
+      <h2>2. How LazyListings Works</h2>
+      <p>LazyListings provides an AI-powered platform that streamlines the process of listing products for sale on eBay. The core functionality of the Service includes:</p>
+      <ul>
+        <li><strong>Photo-Based Product Identification:</strong> You upload photos of products you wish to sell. Our AI analyzes these images to identify the product, brand, model, and relevant attributes.</li>
+        <li><strong>Automated Listing Generation:</strong> Based on the identified product information, our AI generates optimized listing titles, detailed HTML descriptions, item specifics, and category suggestions tailored for eBay's marketplace.</li>
+        <li><strong>Direct eBay Publishing:</strong> With your explicit authorization, LazyListings publishes completed listings directly to your eBay seller account. This is done through eBay's official OAuth authorization system.</li>
+        <li><strong>Pricing Assistance:</strong> The Service may provide pricing suggestions based on comparable listings currently active on eBay.</li>
+      </ul>
+    </div>
+
+    <!-- Section 3: eBay Account Connection -->
+    <div class="terms-card">
+      <h2>3. eBay Account Connection via OAuth</h2>
+      <p>To use the full functionality of LazyListings, you will be asked to connect your eBay seller account to our Service. This connection is established through <strong>eBay's official OAuth 2.0 authorization protocol</strong>, which is the industry-standard method for secure, delegated access.</p>
+
+      <h3>3.1 How OAuth Works</h3>
+      <p>When you choose to connect your eBay account, you will be redirected to eBay's official authorization page. On that page, eBay will ask you to sign in (if not already signed in) and to grant LazyListings specific permissions. You are authorizing eBay to share certain access capabilities with LazyListings. At no point does LazyListings see, handle, or store your eBay username or password.</p>
+
+      <h3>3.2 What We Request Access To</h3>
+      <p>When you authorize LazyListings through eBay's OAuth system, you grant us the following specific permissions (known as "scopes"):</p>
+      <ul>
+        <li><strong>Sell Inventory Access:</strong> The ability to create, modify, and manage product listings on your eBay account. This is the core permission that allows us to publish listings on your behalf.</li>
+        <li><strong>Sell Account Access:</strong> The ability to read your seller business policies (shipping policies, return policies, and payment policies) so that we can correctly apply them to listings we create for you.</li>
+        <li><strong>Sell Fulfillment Access:</strong> The ability to view order and fulfillment information related to listings created through our Service.</li>
+        <li><strong>Commerce Identity (Read-Only):</strong> The ability to read your basic eBay profile information (such as your eBay username) for display purposes within the LazyListings dashboard.</li>
+      </ul>
+
+      <h3>3.3 Revoking Access</h3>
+      <p>You may disconnect your eBay account from LazyListings at any time through the Settings page within the application. You may also revoke access directly from your eBay account settings. Upon disconnection, LazyListings will immediately delete all stored OAuth tokens associated with your account, and we will no longer be able to interact with your eBay account in any way.</p>
+    </div>
+
+    <!-- Section 4: Your Data and Privacy -->
+    <div class="terms-card">
+      <h2>4. Your Data and Privacy</h2>
+
+      <div class="highlight-box">
+        <p>Your eBay data remains private. LazyListings does not access, collect, store, or analyze your existing eBay listings, sales history, buyer information, financial data, messages, or any other personal data from your eBay account beyond what is strictly necessary to provide the Service as described in these terms.</p>
+      </div>
+
+      <h3>4.1 What We Do NOT Access</h3>
+      <p>To be clear, LazyListings does <strong>not</strong> access or store:</p>
+      <ul>
+        <li>Your existing eBay listings or sales history</li>
+        <li>Your eBay buyer or customer information</li>
+        <li>Your eBay messages or communications</li>
+        <li>Your eBay financial information, payouts, or payment details</li>
+        <li>Your eBay account settings beyond seller business policies</li>
+        <li>Your personal eBay browsing or purchasing activity</li>
+      </ul>
+
+      <h3>4.2 What We Do Store</h3>
+      <p>LazyListings stores only the following information:</p>
+      <ul>
+        <li><strong>Your LazyListings Account Information:</strong> Name, email address, and encrypted password that you provide when creating your LazyListings account.</li>
+        <li><strong>OAuth Tokens:</strong> Encrypted access and refresh tokens provided by eBay's OAuth system, used solely to authenticate API requests on your behalf. These tokens are encrypted at rest using AES-256-GCM encryption.</li>
+        <li><strong>Your eBay Username:</strong> Displayed on your Settings page so you can confirm which eBay account is connected.</li>
+        <li><strong>Listing Records:</strong> Basic metadata about listings created through LazyListings (title, price, eBay item ID, thumbnail URL) for your reference within the application.</li>
+        <li><strong>Uploaded Images:</strong> Product photos you upload for listing creation. These images are used solely for the purpose of generating your listings.</li>
+      </ul>
+
+      <h3>4.3 Token Security</h3>
+      <p>All eBay OAuth tokens are encrypted using industry-standard AES-256-GCM encryption before being stored in our database. Tokens are only decrypted in memory when making authorized API calls to eBay on your behalf. We employ secure key management practices to protect your credentials.</p>
+    </div>
+
+    <!-- Section 5: Consent to Automated Listing -->
+    <div class="terms-card">
+      <h2>5. Consent to Automated Listing Actions</h2>
+
+      <div class="warning-box">
+        <p>By using LazyListings and connecting your eBay account, you acknowledge and agree that you are granting LazyListings the ability to create and publish live listings on your eBay seller account on your behalf. These are real listings that will be visible to buyers on eBay.</p>
+      </div>
+
+      <h3>5.1 What This Means</h3>
+      <p>When you click the "Publish" or "List on eBay" button (or similar action buttons) within LazyListings, the Service will:</p>
+      <ul>
+        <li>Upload product images to eBay's image hosting service on your behalf</li>
+        <li>Create a new fixed-price listing on your eBay seller account with the title, description, price, category, condition, item specifics, and images that you have reviewed</li>
+        <li>Apply your selected shipping, return, and payment business policies to the listing</li>
+        <li>Make the listing immediately visible and purchasable by buyers on eBay</li>
+      </ul>
+
+      <h3>5.2 Your Responsibility</h3>
+      <p>You are solely responsible for reviewing all listing details before publishing. While our AI assists in generating listing content, you should verify that:</p>
+      <ul>
+        <li>The product title and description accurately represent the item you are selling</li>
+        <li>The price is correct and reflects your intended selling price</li>
+        <li>The condition (new, used, etc.) is accurately stated</li>
+        <li>The category and item specifics are appropriate</li>
+        <li>The images accurately depict the product being sold</li>
+        <li>The listing complies with eBay's listing policies and applicable laws</li>
+      </ul>
+      <p>LazyListings acts as a tool to facilitate listing creation. You maintain full control over whether to publish each listing, and each listing requires your explicit action (button click) to be published. We do not automatically publish listings without your direct initiation.</p>
+
+      <h3>5.3 eBay Fees and Obligations</h3>
+      <p>Listings created through LazyListings are subject to eBay's standard fees, policies, and seller obligations. You are responsible for all eBay fees incurred from listings published through our Service, including but not limited to insertion fees, final value fees, and promoted listing fees. LazyListings is not responsible for any fees charged by eBay.</p>
+
+      <h3>5.4 No Guarantee of Sale or Accuracy</h3>
+      <p>LazyListings does not guarantee that listings created through the Service will result in sales, that AI-generated content will be free of errors, or that pricing suggestions will be accurate. The AI-generated content is provided as a starting point and convenience tool, and you should exercise your own judgment before publishing.</p>
+    </div>
+
+    <!-- Section 6: Account and Access -->
+    <div class="terms-card">
+      <h2>6. Account and Access</h2>
+
+      <h3>6.1 Account Registration</h3>
+      <p>To use LazyListings, you must create an account by providing accurate and complete information including your name, email address, and a secure password. You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
+
+      <h3>6.2 Team Access</h3>
+      <p>LazyListings supports multi-user access with role-based permissions. As an account owner (Admin), you may invite additional users to your account with specific roles (Publisher, Operator). You are responsible for the actions taken by any users you invite to your account. Team members share access to the connected eBay account under the permissions you grant them.</p>
+
+      <h3>6.3 Account Termination</h3>
+      <p>You may delete your account at any time. Upon account deletion, we will disconnect your eBay account, delete stored OAuth tokens, and remove your account data from our systems. We reserve the right to suspend or terminate accounts that violate these Terms, engage in fraudulent activity, or abuse the Service.</p>
+    </div>
+
+    <!-- Section 7: Intellectual Property -->
+    <div class="terms-card">
+      <h2>7. Intellectual Property and Content</h2>
+      <p>You retain full ownership of all images you upload and the product information you provide. AI-generated listing content (titles, descriptions) created through the Service is provided for your use and becomes part of your eBay listings.</p>
+      <p>The LazyListings platform, including its design, code, AI models, and underlying technology, remains the intellectual property of LazyListings. You may not copy, modify, distribute, or reverse-engineer any part of the Service.</p>
+    </div>
+
+    <!-- Section 8: Limitation of Liability -->
+    <div class="terms-card">
+      <h2>8. Limitation of Liability</h2>
+      <p>LazyListings is provided on an "as is" and "as available" basis. To the fullest extent permitted by law, LazyListings disclaims all warranties, whether express or implied, including warranties of merchantability, fitness for a particular purpose, and non-infringement.</p>
+      <p>LazyListings shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities, arising out of or in connection with your use of the Service. This includes, without limitation:</p>
+      <ul>
+        <li>Errors in AI-generated listing content</li>
+        <li>Listings that violate eBay policies resulting in account restrictions</li>
+        <li>Fees charged by eBay for listings created through the Service</li>
+        <li>Disputes with buyers arising from listings created through the Service</li>
+        <li>Service downtime or interruptions</li>
+        <li>Unauthorized access to your account due to compromised credentials</li>
+      </ul>
+      <p>Our total liability to you for any claims arising from the use of the Service shall not exceed the amount you have paid to LazyListings in the twelve (12) months preceding the claim.</p>
+    </div>
+
+    <!-- Section 9: Changes to Terms -->
+    <div class="terms-card">
+      <h2>9. Changes to These Terms</h2>
+      <p>We may update these Terms and Conditions from time to time to reflect changes in our Service, legal requirements, or business practices. When we make material changes, we will notify you by email or through a prominent notice within the application. Your continued use of the Service after such changes constitutes your acceptance of the updated terms.</p>
+      <p>We encourage you to review these Terms periodically to stay informed about your rights and obligations.</p>
+    </div>
+
+    <!-- Section 10: Contact -->
+    <div class="terms-card">
+      <h2>10. Contact Us</h2>
+      <p>If you have any questions, concerns, or requests regarding these Terms and Conditions or the way we handle your data, please contact us at:</p>
+      <p><strong>Email:</strong> support@lazylistings.com</p>
+      <p>We will make every reasonable effort to respond to your inquiry promptly.</p>
+    </div>
+
+    <p class="back-link"><a href="/signup.html">&larr; Back to Sign Up</a></p>
+  </div>
+</body>
+</html>

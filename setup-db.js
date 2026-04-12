@@ -61,6 +61,7 @@ async function setup() {
       "suggested_mpn" VARCHAR(255),
       "item_aspects" JSONB,
       "sku" VARCHAR(100),
+      "upc" VARCHAR(13),
       "price" NUMERIC(10,2),
       "condition_id" VARCHAR(10),
       "quantity" INTEGER DEFAULT 1,

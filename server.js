@@ -309,7 +309,7 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
   const {
     title, description, price, categoryId,
     conditionId, pictureUrls, quantity, location,
-    sku, itemSpecifics, shippingPolicyId, returnPolicyId, paymentPolicyId,
+    sku, upc, itemSpecifics, shippingPolicyId, returnPolicyId, paymentPolicyId,
     bestOfferEnabled, autoAcceptPrice, minBestOfferPrice, autoPay,
   } = req.body;
 
@@ -431,6 +431,9 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     (bestOfferEnabled && parseFloat(autoAcceptPrice) > 0) ? `      <BestOfferAutoAcceptPrice currencyID="USD">${parseFloat(autoAcceptPrice).toFixed(2)}</BestOfferAutoAcceptPrice>` : null,
     (bestOfferEnabled && parseFloat(minBestOfferPrice) > 0) ? `      <MinimumBestOfferPrice currencyID="USD">${parseFloat(minBestOfferPrice).toFixed(2)}</MinimumBestOfferPrice>` : null,
     (bestOfferEnabled && (parseFloat(autoAcceptPrice) > 0 || parseFloat(minBestOfferPrice) > 0)) ? '    </ListingDetails>' : null,
+    upc ? '    <ProductListingDetails>' : null,
+    upc ? `      <UPC>${escapeXml(upc)}</UPC>` : null,
+    upc ? '    </ProductListingDetails>' : null,
     '    <PictureDetails>',
     pictureUrlsXml,
     '    </PictureDetails>',

@@ -179,6 +179,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       ['suggested_mpn', 'suggested_mpn'],
       ['item_aspects', 'item_aspects'],
       ['sku', 'sku'],
+      ['upc', 'upc'],
       ['price', 'price'],
       ['condition_id', 'condition_id'],
       ['quantity', 'quantity'],

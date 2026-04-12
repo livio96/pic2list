@@ -1100,6 +1100,7 @@
             <th>Product</th>
             <th>Price</th>
             <th>SKU</th>
+            <th>UPC</th>
             <th>Condition</th>
             <th>Status</th>
             <th>Actions</th>
@@ -1544,6 +1545,7 @@
             _claudeVerified: draft.claude_verified || false,
             _itemAspects: draft.item_aspects || null,
             _sku: draft.sku || '',
+            _upc: draft.upc || '',
             _priceRange: draft.price_range || null,
             _modalQty: draft.quantity ? String(draft.quantity) : '1',
             _shippingPolicyId: draft.shipping_policy_id || '',
@@ -1553,7 +1555,7 @@
             _minBestOfferPrice: draft.min_best_offer_price ? String(draft.min_best_offer_price) : '',
             _autoPay: draft.auto_pay !== false,
             _savedPrice: draft.price ? String(draft.price) : '',
-            _savedCondition: draft.condition_id || '3000',
+            _savedCondition: draft.condition_id || '',
           });
         }
 
@@ -1574,6 +1576,10 @@
             if (meta._sku) {
               const skuEl = document.getElementById(`sku-${ci}`);
               if (skuEl) skuEl.value = meta._sku;
+            }
+            if (meta._upc) {
+              const upcEl = document.getElementById(`upc-${ci}`);
+              if (upcEl) upcEl.value = meta._upc;
             }
             if (meta._priceRange) {
               const pr = meta._priceRange;
@@ -1656,6 +1662,7 @@
             suggested_mpn: meta.suggestedMpn,
             item_aspects: meta._itemAspects,
             sku: meta._sku,
+            upc: meta._upc,
             price: priceEl ? priceEl.value || null : null,
             condition_id: condEl ? condEl.value : null,
             quantity: parseInt(meta._modalQty) || 1,
@@ -2125,6 +2132,7 @@
           </div>
         </td>
         <td><input type="text" class="cell-price-input" id="sku-${ci}" placeholder="SKU" maxlength="50" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}></td>
+        <td><input type="text" class="cell-price-input" id="upc-${ci}" placeholder="UPC" maxlength="13" style="width:110px;" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}></td>
         <td>
           <select class="cell-cond-select" id="condition-${ci}" ${meta.status === 'listed' || meta.status === 'rejected' ? 'disabled' : ''}>
             <option value="" selected disabled>Select...</option>
@@ -2232,24 +2240,28 @@
       const tr = document.getElementById(`row-${ci}`);
       if (!tr) return;
 
-      // Save current price/condition/sku before re-rendering
+      // Save current price/condition/sku/upc before re-rendering
       const priceEl = document.getElementById(`price-${ci}`);
       const condEl = document.getElementById(`condition-${ci}`);
       const skuEl = document.getElementById(`sku-${ci}`);
+      const upcEl = document.getElementById(`upc-${ci}`);
       const savedPrice = priceEl ? priceEl.value : '';
-      const savedCond = condEl ? condEl.value : '3000';
+      const savedCond = condEl ? condEl.value : '';
       const savedSku = skuEl ? skuEl.value : (meta._sku || '');
+      const savedUpc = upcEl ? upcEl.value : (meta._upc || '');
 
       tr.innerHTML = buildRowHtml(ci, meta);
       tr.className = meta.status === 'rejected' ? 'row-rejected' : meta.status === 'listed' ? 'row-listed' : '';
 
-      // Restore price/condition/sku
+      // Restore price/condition/sku/upc
       const newPrice = document.getElementById(`price-${ci}`);
       const newCond = document.getElementById(`condition-${ci}`);
       const newSku = document.getElementById(`sku-${ci}`);
+      const newUpc = document.getElementById(`upc-${ci}`);
       if (newPrice && savedPrice) newPrice.value = savedPrice;
       if (newCond && savedCond) newCond.value = savedCond;
       if (newSku && savedSku) newSku.value = savedSku;
+      if (newUpc && savedUpc) newUpc.value = savedUpc;
 
       // Restore cached price range
       if (meta._priceRange) {
@@ -3278,6 +3290,10 @@ HTML:
             <input type="text" id="modalSku" value="${escapeHtml(meta._sku || '')}" placeholder="e.g. ABC-12345" maxlength="50">
           </div>
           <div class="modal-field">
+            <label>UPC / Barcode</label>
+            <input type="text" id="modalUpc" value="${escapeHtml(meta._upc || '')}" placeholder="e.g. 012345678901" maxlength="13">
+          </div>
+          <div class="modal-field">
             <label>Quantity</label>
             <input type="number" id="modalQty" value="1" min="1" step="1">
           </div>
@@ -3569,7 +3585,9 @@ HTML:
       meta.suggestedBrand = meta._itemAspects['Brand'] || '';
       meta.suggestedType = meta._itemAspects['Type'] || '';
       meta.suggestedMpn = meta._itemAspects['MPN'] || '';
+      const upc = document.getElementById('modalUpc');
       if (sku) meta._sku = sku.value.trim();
+      if (upc) meta._upc = upc.value.trim();
       if (qty) meta._modalQty = qty.value;
       if (ship) meta._shippingPolicyId = ship.value;
       if (ret) meta._returnPolicyId = ret.value;
@@ -4209,7 +4227,9 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
       const price = document.getElementById(`price-${ci}`).value;
       const conditionId = document.getElementById(`condition-${ci}`).value;
       const skuEl = document.getElementById(`sku-${ci}`);
+      const upcEl = document.getElementById(`upc-${ci}`);
       const sku = (skuEl ? skuEl.value.trim() : '') || meta._sku || '';
+      const upc = (upcEl ? upcEl.value.trim() : '') || meta._upc || '';
       const categoryId = meta.suggestedCategoryId || '';
       const quantity = meta._modalQty || '1';
       const itemSpecifics = meta._itemAspects || {};
@@ -4294,6 +4314,7 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
             pictureUrls,
             quantity,
             sku,
+            upc: upc || undefined,
             itemSpecifics,
             shippingPolicyId,
             returnPolicyId,

@@ -20,26 +20,44 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-// ── GET /api/my-listings — Fetch all active listings from eBay ──
+// ── GET /api/my-listings — Fetch active or unsold listings from eBay ──
 router.get('/', async (req, res) => {
   const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
   if (!token) return res.status(400).json({ error: 'eBay not connected' });
 
   const page = parseInt(req.query.page) || 1;
   const perPage = parseInt(req.query.perPage) || 50;
+  const status = req.query.status || 'active'; // 'active' or 'unsold'
+
+  let listXml;
+  if (status === 'unsold') {
+    listXml = [
+      '  <UnsoldList>',
+      '    <Sort>EndTime</Sort>',
+      '    <Pagination>',
+      `      <EntriesPerPage>${perPage}</EntriesPerPage>`,
+      `      <PageNumber>${page}</PageNumber>`,
+      '    </Pagination>',
+      '  </UnsoldList>',
+    ].join('\n');
+  } else {
+    listXml = [
+      '  <ActiveList>',
+      '    <Sort>TimeLeft</Sort>',
+      '    <Pagination>',
+      `      <EntriesPerPage>${perPage}</EntriesPerPage>`,
+      `      <PageNumber>${page}</PageNumber>`,
+      '    </Pagination>',
+      '  </ActiveList>',
+    ].join('\n');
+  }
 
   const xml = [
     '<?xml version="1.0" encoding="utf-8"?>',
     '<GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">',
     '  <ErrorLanguage>en_US</ErrorLanguage>',
     '  <WarningLevel>High</WarningLevel>',
-    '  <ActiveList>',
-    '    <Sort>TimeLeft</Sort>',
-    '    <Pagination>',
-    `      <EntriesPerPage>${perPage}</EntriesPerPage>`,
-    `      <PageNumber>${page}</PageNumber>`,
-    '    </Pagination>',
-    '  </ActiveList>',
+    listXml,
     '</GetMyeBaySellingRequest>',
   ].join('\n');
 
@@ -417,6 +435,53 @@ router.put('/:itemId', requireRole('admin', 'publisher'), async (req, res) => {
   } catch (err) {
     console.error('ReviseItem error:', err);
     res.status(500).json({ error: 'Failed to revise listing' });
+  }
+});
+
+// ── POST /api/my-listings/:itemId/relist — Relist an ended listing ──
+router.post('/:itemId/relist', requireRole('admin', 'publisher'), async (req, res) => {
+  const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
+  if (!token) return res.status(400).json({ error: 'eBay not connected' });
+
+  const xml = [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<RelistItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">',
+    '  <ErrorLanguage>en_US</ErrorLanguage>',
+    '  <WarningLevel>High</WarningLevel>',
+    '  <Item>',
+    `    <ItemID>${escapeXml(req.params.itemId)}</ItemID>`,
+    '  </Item>',
+    '</RelistItemRequest>',
+  ].join('\n');
+
+  try {
+    const response = await fetch(EBAY_API_URL, {
+      method: 'POST',
+      headers: { ...ebayHeaders('RelistItem', token), 'Content-Type': 'text/xml' },
+      body: xml,
+    });
+    const text = await response.text();
+
+    const ackMatch = text.match(/<Ack>([^<]+)<\/Ack>/);
+    if (!ackMatch || (ackMatch[1] !== 'Success' && ackMatch[1] !== 'Warning')) {
+      const errMsg = text.match(/<LongMessage>([^<]+)<\/LongMessage>/) || text.match(/<ShortMessage>([^<]+)<\/ShortMessage>/);
+      return res.status(400).json({ error: errMsg ? errMsg[1] : 'Failed to relist item' });
+    }
+
+    const newItemId = (text.match(/<ItemID>([^<]+)<\/ItemID>/) || [])[1] || req.params.itemId;
+
+    // Parse fees
+    const feesBlock = text.match(/<Fees>([\s\S]*?)<\/Fees>/);
+    let totalFees = '';
+    if (feesBlock) {
+      const feeMatch = feesBlock[1].match(/<Name>ListingFee<\/Name>\s*<Fee[^>]*>([^<]+)<\/Fee>/);
+      if (feeMatch) totalFees = feeMatch[1];
+    }
+
+    res.json({ success: true, message: 'Item relisted successfully', newItemId, fees: totalFees });
+  } catch (err) {
+    console.error('RelistItem error:', err);
+    res.status(500).json({ error: 'Failed to relist item' });
   }
 });
 

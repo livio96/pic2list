@@ -36,11 +36,16 @@
     .btn-red:hover { background: #dc2626; }
     .btn-sm { padding: 7px 16px; font-size: 12px; }
     .btn-xs { padding: 5px 12px; font-size: 11px; border-radius: 8px; }
+    .btn-orange { background: #f59e0b; color: #fff; }
+    .btn-orange:hover { background: #d97706; }
+    .btn-purple { background: #8b5cf6; color: #fff; }
+    .btn-purple:hover { background: #7c3aed; }
     .spinner {
       display: inline-block; width: 16px; height: 16px;
       border: 2px solid #d1d5db; border-top-color: #4f6ef7; border-radius: 50%;
       animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle;
     }
+    .spinner-sm { width: 12px; height: 12px; border-width: 1.5px; margin-right: 5px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
 
@@ -92,7 +97,7 @@
       font-size: 11px; font-weight: 600;
     }
     .badge-active { background: #dcfce7; color: #16a34a; }
-    .badge-auction { background: #fef3c7; color: #d97706; }
+    .badge-ended { background: #fee2e2; color: #dc2626; }
 
     /* Pagination */
     .pagination {
@@ -115,7 +120,7 @@
     }
     .modal-overlay.active { display: flex; justify-content: center; align-items: flex-start; }
     .modal {
-      background: #fff; border-radius: 16px; width: 100%; max-width: 900px;
+      background: #fff; border-radius: 16px; width: 100%; max-width: 960px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.2); position: relative;
     }
     .modal-header {
@@ -132,7 +137,7 @@
     .modal-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
     .modal-footer {
       padding: 16px 24px; border-top: 1px solid #e5e7eb;
-      display: flex; gap: 10px; justify-content: flex-end;
+      display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
     }
 
     /* Detail layout */
@@ -151,7 +156,14 @@
       cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s;
     }
     .detail-thumbs img:hover, .detail-thumbs img.active { border-color: #4f6ef7; }
-    .detail-info { display: flex; flex-direction: column; gap: 16px; }
+    .detail-info { display: flex; flex-direction: column; gap: 12px; }
+
+    /* AI Toolbar */
+    .ai-toolbar {
+      display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0;
+      border-bottom: 1px solid #e5e7eb; margin-bottom: 4px;
+    }
+    .ai-toolbar .btn { font-size: 11px; padding: 5px 10px; border-radius: 6px; }
 
     /* Form groups */
     .form-group { display: flex; flex-direction: column; gap: 4px; }
@@ -167,12 +179,12 @@
       border-color: #4f6ef7; box-shadow: 0 0 0 3px rgba(79,110,247,0.1);
     }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
     /* Specs table */
-    .specs-section { margin-top: 16px; }
+    .specs-section { margin-top: 8px; }
     .specs-section h4 {
       font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #3a3f5c;
+      display: flex; align-items: center; gap: 8px;
     }
     .specs-table { width: 100%; border-collapse: collapse; }
     .specs-table td {
@@ -193,7 +205,7 @@
 
     /* Tabs */
     .tabs {
-      display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px;
+      display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 8px;
     }
     .tab {
       padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -238,11 +250,57 @@
     .bulk-bar.active { display: flex; }
     .bulk-bar span { font-size: 13px; font-weight: 600; color: #3a3f5c; }
 
-    /* Ebay link */
+    /* Status toggle */
+    .status-toggle {
+      display: flex; background: #e9ecef; border-radius: 8px; overflow: hidden;
+    }
+    .status-toggle button {
+      padding: 7px 16px; font-size: 12px; font-weight: 600; border: none;
+      cursor: pointer; background: transparent; color: #555b6e; transition: all 0.15s;
+    }
+    .status-toggle button.active {
+      background: #4f6ef7; color: #fff; box-shadow: 0 1px 3px rgba(79,110,247,0.3);
+    }
+    .status-toggle button:hover:not(.active) { background: #dde1e6; }
+
     .ebay-link {
       color: #4f6ef7; text-decoration: none; font-size: 12px; font-weight: 600;
     }
     .ebay-link:hover { text-decoration: underline; }
+
+    /* AI result panels */
+    .ai-result-panel {
+      margin-top: 12px; padding: 12px; background: #fafbfc; border-radius: 8px;
+      border: 1px solid #e5e7eb; font-size: 12px;
+    }
+    .ai-result-panel h5 { font-size: 12px; font-weight: 700; color: #3a3f5c; margin-bottom: 8px; }
+    .price-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+    .price-stat { text-align: center; }
+    .price-stat .val { font-size: 18px; font-weight: 800; color: #22c55e; }
+    .price-stat .lbl { font-size: 10px; color: #8b8fa3; text-transform: uppercase; }
+
+    /* Sold listings panel */
+    .sold-list { max-height: 300px; overflow-y: auto; margin-top: 8px; }
+    .sold-item {
+      display: flex; gap: 10px; padding: 8px; border-bottom: 1px solid #f0f1f3;
+      align-items: center; font-size: 12px;
+    }
+    .sold-item img { width: 40px; height: 40px; border-radius: 4px; object-fit: cover; }
+    .sold-item .sold-title { flex: 1; font-weight: 500; }
+    .sold-item .sold-price { font-weight: 700; color: #22c55e; white-space: nowrap; }
+    .sold-item .sold-date { color: #8b8fa3; font-size: 11px; white-space: nowrap; }
+
+    /* Copy specs modal */
+    .specs-search-results { max-height: 350px; overflow-y: auto; margin-top: 10px; }
+    .specs-result-item {
+      display: flex; gap: 10px; padding: 10px; border-bottom: 1px solid #f0f1f3;
+      align-items: center; font-size: 12px; cursor: pointer;
+    }
+    .specs-result-item:hover { background: #f8f9ff; }
+    .specs-result-item img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; }
+    .specs-result-item .sr-info { flex: 1; }
+    .specs-result-item .sr-title { font-weight: 600; }
+    .specs-result-item .sr-price { color: #22c55e; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -265,6 +323,10 @@
         <span class="stats" id="statsText">Loading...</span>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
+        <div class="status-toggle" id="statusToggle">
+          <button class="active" data-status="active">Active</button>
+          <button data-status="unsold">Ended / Unsold</button>
+        </div>
         <input type="text" class="search-box" id="searchBox" placeholder="Search listings...">
         <button class="btn btn-primary btn-sm" id="refreshBtn">Refresh</button>
       </div>
@@ -273,6 +335,7 @@
     <div class="bulk-bar" id="bulkBar">
       <span id="bulkCount">0 selected</span>
       <button class="btn btn-red btn-sm" id="bulkEndBtn">End Selected</button>
+      <button class="btn btn-green btn-sm" id="bulkRelistBtn" style="display:none;">Relist Selected</button>
       <button class="btn btn-secondary btn-sm" id="bulkCancelBtn">Cancel</button>
     </div>
 
@@ -329,6 +392,19 @@
               <div class="detail-thumbs" id="thumbStrip"></div>
             </div>
             <div class="detail-info">
+              <!-- AI Toolbar -->
+              <div class="ai-toolbar">
+                <button class="btn btn-primary" id="aiPriceBtn" title="Lookup price range">Price Range</button>
+                <button class="btn btn-orange" id="aiSoldBtn" title="Research sold listings">Sold Listings</button>
+                <button class="btn btn-purple" id="aiSpecsBtn" title="Auto-fill specs with AI">AI Fill Specs</button>
+                <button class="btn btn-secondary" id="aiCopySpecsBtn" title="Copy specs from another listing">Copy Specs</button>
+                <button class="btn btn-purple" id="aiReviewBtn" title="AI review & enrich listing">AI Review</button>
+              </div>
+
+              <!-- AI Result Panels (shown/hidden dynamically) -->
+              <div id="priceRangePanel" class="ai-result-panel" style="display:none;"></div>
+              <div id="soldPanel" class="ai-result-panel" style="display:none;"></div>
+
               <div class="tabs">
                 <button class="tab active" data-tab="details">Details</button>
                 <button class="tab" data-tab="specs">Item Specifics</button>
@@ -435,6 +511,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-red btn-sm" id="endListingBtn">End Listing</button>
+        <button class="btn btn-green btn-sm" id="relistListingBtn" style="display:none;">Relist</button>
         <button class="btn btn-secondary btn-sm" id="cancelEditBtn">Cancel</button>
         <button class="btn btn-green btn-sm" id="saveListingBtn">Save Changes</button>
       </div>
@@ -467,7 +544,40 @@
     </div>
   </div>
 
-  <!-- Description Preview Modal -->
+  <!-- Copy Specs Modal -->
+  <div class="modal-overlay" id="copySpecsModal">
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>Copy Specs From eBay Listing</h3>
+        <button class="modal-close" id="copySpecsClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="search-box" id="specsSearchInput" placeholder="Search eBay for similar listings..." style="flex:1;">
+          <button class="btn btn-primary btn-sm" id="specsSearchBtn">Search</button>
+        </div>
+        <div id="specsSearchStatus" style="font-size:12px; color:#8b8fa3; margin-top:8px;"></div>
+        <div class="specs-search-results" id="specsSearchResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sold Research Modal -->
+  <div class="modal-overlay" id="soldModal">
+    <div class="modal" style="max-width:700px;">
+      <div class="modal-header">
+        <h3>Sold Listings Research</h3>
+        <button class="modal-close" id="soldModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="soldStats" class="price-stats" style="margin-bottom:12px;"></div>
+        <div class="sold-list" id="soldList"></div>
+        <div id="soldLoading" style="text-align:center; padding:20px; display:none;">
+          <span class="spinner"></span> Searching sold listings...
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="toast" id="toast"></div>
 
@@ -480,6 +590,7 @@
     let currentItemId = null;
     let currentItemData = null;
     let selectedIds = new Set();
+    let currentStatus = 'active';
 
     // ── Toast ──
     function showToast(msg, type = 'success') {
@@ -487,6 +598,12 @@
       t.textContent = msg;
       t.className = `toast toast-${type} show`;
       setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
     }
 
     // ── Auth check ──
@@ -506,7 +623,7 @@
       updateBulkBar();
 
       try {
-        const resp = await fetch(`/api/my-listings?page=${page}&perPage=50`);
+        const resp = await fetch(`/api/my-listings?page=${page}&perPage=50&status=${currentStatus}`);
         const data = await resp.json();
 
         if (!resp.ok) {
@@ -528,7 +645,8 @@
           return;
         }
 
-        document.getElementById('statsText').textContent = `${totalEntries} active listing${totalEntries !== 1 ? 's' : ''}`;
+        const label = currentStatus === 'unsold' ? 'ended/unsold' : 'active';
+        document.getElementById('statsText').textContent = `${totalEntries} ${label} listing${totalEntries !== 1 ? 's' : ''}`;
         renderListings(allListings);
 
         document.getElementById('listingsTable').style.display = 'table';
@@ -554,6 +672,7 @@
         l.itemId.includes(search)
       ) : listings;
 
+      const isUnsold = currentStatus === 'unsold';
       const tbody = document.getElementById('listingsBody');
       tbody.innerHTML = filtered.map(item => `
         <tr data-id="${item.itemId}">
@@ -565,19 +684,19 @@
           <td><span class="listing-qty">${item.quantityAvailable}</span></td>
           <td>${item.quantitySold || 0}</td>
           <td><span class="listing-watchers">${item.watchers || 0}</span></td>
-          <td><span class="badge badge-active">${item.listingType === 'Chinese' ? 'Auction' : 'Active'}</span></td>
+          <td><span class="badge ${isUnsold ? 'badge-ended' : 'badge-active'}">${isUnsold ? 'Ended' : (item.listingType === 'Chinese' ? 'Auction' : 'Active')}</span></td>
           <td>
-            <button class="btn btn-secondary btn-xs end-single-btn" data-id="${item.itemId}" onclick="event.stopPropagation(); openEndModal('${item.itemId}')">End</button>
+            ${isUnsold
+              ? `<button class="btn btn-green btn-xs" data-id="${item.itemId}" onclick="event.stopPropagation(); relistItem('${item.itemId}')">Relist</button>`
+              : `<button class="btn btn-secondary btn-xs" data-id="${item.itemId}" onclick="event.stopPropagation(); openEndModal('${item.itemId}')">End</button>`
+            }
           </td>
         </tr>
       `).join('');
 
-      // Row click → open detail
       for (const row of tbody.querySelectorAll('tr')) {
         row.addEventListener('click', () => openDetail(row.dataset.id));
       }
-
-      // Checkbox handling
       for (const cb of tbody.querySelectorAll('.row-check')) {
         cb.addEventListener('change', (e) => {
           if (e.target.checked) selectedIds.add(e.target.dataset.id);
@@ -585,12 +704,6 @@
           updateBulkBar();
         });
       }
-    }
-
-    function escHtml(s) {
-      const d = document.createElement('div');
-      d.textContent = s || '';
-      return d.innerHTML;
     }
 
     // ── Select all ──
@@ -629,30 +742,71 @@
       for (const id of ids) {
         try {
           const resp = await fetch(`/api/my-listings/${id}/end`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason: 'NotAvailable' }),
           });
           if (resp.ok) success++;
-        } catch (e) { /* continue */ }
+        } catch (e) {}
       }
       showToast(`${success} of ${ids.length} listings ended`);
-      selectedIds.clear();
-      updateBulkBar();
-      loadListings(currentPage);
+      selectedIds.clear(); updateBulkBar(); loadListings(currentPage);
     });
 
-    // ── Search ──
-    document.getElementById('searchBox').addEventListener('input', () => renderListings(allListings));
+    document.getElementById('bulkRelistBtn').addEventListener('click', async () => {
+      if (!confirm(`Relist ${selectedIds.size} item(s)?`)) return;
+      const ids = [...selectedIds];
+      let success = 0;
+      for (const id of ids) {
+        try {
+          const resp = await fetch(`/api/my-listings/${id}/relist`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+          });
+          if (resp.ok) success++;
+        } catch (e) {}
+      }
+      showToast(`${success} of ${ids.length} items relisted`);
+      selectedIds.clear(); updateBulkBar(); loadListings(currentPage);
+    });
 
-    // ── Pagination ──
+    // ── Search / Pagination / Refresh ──
+    document.getElementById('searchBox').addEventListener('input', () => renderListings(allListings));
     document.getElementById('prevPage').addEventListener('click', () => loadListings(currentPage - 1));
     document.getElementById('nextPage').addEventListener('click', () => loadListings(currentPage + 1));
-
-    // ── Refresh ──
     document.getElementById('refreshBtn').addEventListener('click', () => loadListings(currentPage));
 
-    // ── Open detail modal ──
+    // ── Status toggle ──
+    document.querySelectorAll('#statusToggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#statusToggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status;
+        document.getElementById('bulkEndBtn').style.display = currentStatus === 'active' ? '' : 'none';
+        document.getElementById('bulkRelistBtn').style.display = currentStatus === 'unsold' ? '' : 'none';
+        loadListings(1);
+      });
+    });
+
+    // ── Relist single item ──
+    async function relistItem(itemId) {
+      if (!confirm('Relist this item on eBay?')) return;
+      try {
+        const resp = await fetch(`/api/my-listings/${itemId}/relist`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          showToast(`Relisted! New Item ID: ${data.newItemId}`);
+          loadListings(currentPage);
+        } else {
+          showToast(data.error || 'Failed to relist', 'error');
+        }
+      } catch (err) { showToast('Failed to relist item', 'error'); }
+    }
+
+    // ══════════════════════════════════════════════
+    // ── DETAIL MODAL
+    // ══════════════════════════════════════════════
+
     async function openDetail(itemId) {
       currentItemId = itemId;
       currentItemData = null;
@@ -660,6 +814,9 @@
       modal.classList.add('active');
       document.getElementById('modalLoading').style.display = 'flex';
       document.getElementById('modalContent').style.display = 'none';
+      // Hide previous AI panels
+      document.getElementById('priceRangePanel').style.display = 'none';
+      document.getElementById('soldPanel').style.display = 'none';
 
       try {
         const resp = await fetch(`/api/my-listings/${itemId}`);
@@ -669,17 +826,19 @@
         populateModal(data);
         document.getElementById('modalLoading').style.display = 'none';
         document.getElementById('modalContent').style.display = 'block';
+        const isUnsold = currentStatus === 'unsold';
+        document.getElementById('endListingBtn').style.display = isUnsold ? 'none' : '';
+        document.getElementById('relistListingBtn').style.display = isUnsold ? '' : 'none';
+        document.getElementById('saveListingBtn').style.display = isUnsold ? 'none' : '';
       } catch (err) {
         showToast('Failed to load details', 'error');
         modal.classList.remove('active');
       }
     }
 
-    // ── Populate modal ──
     function populateModal(data) {
       document.getElementById('modalTitle').textContent = data.title || 'Listing Details';
 
-      // Images
       const mainImg = document.getElementById('mainImage');
       mainImg.src = data.pictures[0] || '';
       const strip = document.getElementById('thumbStrip');
@@ -687,7 +846,6 @@
         `<img src="${url}" class="${i === 0 ? 'active' : ''}" onclick="selectThumb(this, '${url}')">`
       ).join('');
 
-      // Fields
       document.getElementById('editTitle').value = data.title || '';
       document.getElementById('editPrice').value = data.price || '';
       document.getElementById('editQuantity').value = data.quantityAvailable || 1;
@@ -700,12 +858,11 @@
       document.getElementById('editMinOffer').value = data.minBestOfferPrice || '';
       document.getElementById('editDescription').value = data.description || '';
       document.getElementById('viewOnEbay').href = data.listingUrl || '#';
+      document.getElementById('descPreview').style.display = 'none';
 
-      // Specs
       renderSpecs(data.specifics || {});
-
-      // Reset tabs
-      document.querySelector('.tab.active').click();
+      // Reset to details tab
+      document.querySelector('.tab[data-tab="details"]').click();
     }
 
     function selectThumb(el, url) {
@@ -724,6 +881,15 @@
           <td><button class="spec-remove" onclick="this.closest('tr').remove()">&times;</button></td>
         </tr>
       `).join('');
+    }
+
+    function collectSpecs() {
+      const specifics = {};
+      document.querySelectorAll('#specsBody tr').forEach(tr => {
+        const input = tr.querySelector('input[data-spec]');
+        if (input) specifics[input.dataset.spec] = input.value;
+      });
+      return specifics;
     }
 
     document.getElementById('addSpecBtn').addEventListener('click', () => {
@@ -752,31 +918,303 @@
       });
     });
 
-    // ── Preview description ──
     document.getElementById('previewDescBtn').addEventListener('click', () => {
       const preview = document.getElementById('descPreview');
-      const desc = document.getElementById('editDescription').value;
       if (preview.style.display === 'none') {
-        preview.innerHTML = desc;
+        preview.innerHTML = document.getElementById('editDescription').value;
         preview.style.display = 'block';
-      } else {
-        preview.style.display = 'none';
+      } else { preview.style.display = 'none'; }
+    });
+
+    document.getElementById('editBestOffer').addEventListener('change', (e) => {
+      document.getElementById('bestOfferFields').style.display = e.target.checked ? 'grid' : 'none';
+    });
+
+    // ══════════════════════════════════════════════
+    // ── AI FEATURES
+    // ══════════════════════════════════════════════
+
+    // ── Price Range ──
+    document.getElementById('aiPriceBtn').addEventListener('click', async () => {
+      if (!currentItemData) return;
+      const btn = document.getElementById('aiPriceBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span>Loading...';
+      const panel = document.getElementById('priceRangePanel');
+
+      try {
+        const q = encodeURIComponent(currentItemData.title);
+        const catId = currentItemData.categoryId ? `&category_id=${currentItemData.categoryId}` : '';
+        const condId = currentItemData.conditionId ? `&condition_id=${currentItemData.conditionId}` : '';
+        const resp = await fetch(`/api/ebay/price-range?q=${q}${catId}${condId}`);
+        const data = await resp.json();
+
+        if (data.success && data.count > 0) {
+          panel.innerHTML = `
+            <h5>Price Range (${data.count} sold listings)</h5>
+            <div class="price-stats">
+              <div class="price-stat"><div class="val">$${parseFloat(data.avg).toFixed(2)}</div><div class="lbl">Average</div></div>
+              <div class="price-stat"><div class="val">$${parseFloat(data.median).toFixed(2)}</div><div class="lbl">Median</div></div>
+            </div>
+          `;
+          panel.style.display = 'block';
+        } else {
+          showToast('No price data found', 'error');
+        }
+      } catch (err) { showToast('Price lookup failed', 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Price Range'; }
+    });
+
+    // ── Sold Listings Research ──
+    document.getElementById('aiSoldBtn').addEventListener('click', async () => {
+      if (!currentItemData) return;
+      const modal = document.getElementById('soldModal');
+      modal.classList.add('active');
+      document.getElementById('soldLoading').style.display = 'block';
+      document.getElementById('soldStats').innerHTML = '';
+      document.getElementById('soldList').innerHTML = '';
+
+      try {
+        const q = encodeURIComponent(currentItemData.title);
+        const cond = encodeURIComponent(document.getElementById('editCondition').selectedOptions[0].text);
+        const resp = await fetch(`/api/ebay/sold-scrape?q=${q}&condition=${cond}`);
+        const data = await resp.json();
+
+        document.getElementById('soldLoading').style.display = 'none';
+
+        if (data.success && data.count > 0) {
+          const s = data.stats;
+          document.getElementById('soldStats').innerHTML = `
+            <div class="price-stat"><div class="val">$${parseFloat(s.avg).toFixed(2)}</div><div class="lbl">Average</div></div>
+            <div class="price-stat"><div class="val">$${parseFloat(s.median).toFixed(2)}</div><div class="lbl">Median</div></div>
+            <div class="price-stat"><div class="val">$${parseFloat(s.low).toFixed(2)}</div><div class="lbl">Low</div></div>
+            <div class="price-stat"><div class="val">$${parseFloat(s.high).toFixed(2)}</div><div class="lbl">High</div></div>
+            <div class="price-stat"><div class="val">${data.count}</div><div class="lbl">Sold</div></div>
+          `;
+          document.getElementById('soldList').innerHTML = (data.listings || []).slice(0, 30).map(l => `
+            <div class="sold-item">
+              <img src="${l.image || ''}" alt="" onerror="this.style.display='none'">
+              <div class="sold-title">${escHtml(l.title)}</div>
+              <div class="sold-price">$${parseFloat(l.price || 0).toFixed(2)}</div>
+              <div class="sold-date">${l.soldDate || ''}</div>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('soldList').innerHTML = '<div style="text-align:center; padding:20px; color:#8b8fa3;">No sold listings found</div>';
+        }
+      } catch (err) {
+        document.getElementById('soldLoading').style.display = 'none';
+        showToast('Sold listings lookup failed', 'error');
       }
     });
 
-    // ── Save changes ──
+    // ── AI Fill Specs ──
+    document.getElementById('aiSpecsBtn').addEventListener('click', async () => {
+      if (!currentItemData) return;
+      const btn = document.getElementById('aiSpecsBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span>Filling...';
+
+      try {
+        // 1. Get category aspects from eBay
+        const catId = currentItemData.categoryId;
+        if (!catId) { showToast('No category set', 'error'); return; }
+
+        const aspectsResp = await fetch(`/api/ebay/item-aspects?category_id=${catId}`);
+        const aspectsData = await aspectsResp.json();
+        if (!aspectsData.success || !aspectsData.aspects) { showToast('Could not load category aspects', 'error'); return; }
+
+        // 2. Build prompt for AI
+        const currentSpecs = collectSpecs();
+        const aspectDefs = aspectsData.aspects.slice(0, 40).map(a => {
+          let def = `${a.name} (${a.usage || 'OPTIONAL'})`;
+          if (a.values && a.values.length > 0) def += `: [${a.values.slice(0, 20).join(', ')}]`;
+          return def;
+        }).join('\n');
+
+        const prompt = `You are an eBay listing expert. Given this product and its current specs, fill in ALL item specifics for the eBay category.
+
+Product Title: ${currentItemData.title}
+Current Specs: ${JSON.stringify(currentSpecs)}
+
+Category Aspects (name, usage, allowed values):
+${aspectDefs}
+
+Return ONLY a valid JSON object mapping aspect names to values. Use allowed values when provided. For free-text fields, infer from the title and current specs. Only include aspects you can confidently fill. Example: {"Brand": "Sony", "Type": "Camera"}`;
+
+        const aiResp = await fetch('/api/openai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_completion_tokens: 2000 }),
+        });
+        const aiData = await aiResp.json();
+        const content = aiData.choices?.[0]?.message?.content || '';
+
+        // Parse JSON from response
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) { showToast('AI returned no specs', 'error'); return; }
+
+        const newSpecs = JSON.parse(jsonMatch[0]);
+
+        // Merge with existing specs (AI fills gaps, doesn't overwrite)
+        const merged = { ...currentSpecs };
+        for (const [k, v] of Object.entries(newSpecs)) {
+          if (v && (!merged[k] || merged[k] === 'Does not apply')) {
+            merged[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+          }
+        }
+
+        renderSpecs(merged);
+        // Switch to specs tab
+        document.querySelector('.tab[data-tab="specs"]').click();
+        showToast(`Filled ${Object.keys(newSpecs).length} specs with AI`);
+      } catch (err) {
+        console.error('AI fill specs error:', err);
+        showToast('AI fill specs failed', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'AI Fill Specs';
+      }
+    });
+
+    // ── Copy Specs from another listing ──
+    document.getElementById('aiCopySpecsBtn').addEventListener('click', () => {
+      if (!currentItemData) return;
+      document.getElementById('copySpecsModal').classList.add('active');
+      document.getElementById('specsSearchInput').value = currentItemData.title || '';
+      document.getElementById('specsSearchResults').innerHTML = '';
+      document.getElementById('specsSearchStatus').textContent = '';
+    });
+
+    document.getElementById('specsSearchBtn').addEventListener('click', searchForSpecs);
+    document.getElementById('specsSearchInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') searchForSpecs();
+    });
+
+    async function searchForSpecs() {
+      const query = document.getElementById('specsSearchInput').value.trim();
+      if (!query) return;
+      document.getElementById('specsSearchStatus').textContent = 'Searching...';
+      document.getElementById('specsSearchResults').innerHTML = '';
+
+      try {
+        const resp = await fetch(`/api/ebay/search-listings?q=${encodeURIComponent(query)}`);
+        const data = await resp.json();
+
+        if (data.success && data.listings && data.listings.length > 0) {
+          document.getElementById('specsSearchStatus').textContent = `${data.count || data.listings.length} results`;
+          document.getElementById('specsSearchResults').innerHTML = data.listings.slice(0, 15).map(l => `
+            <div class="specs-result-item" onclick="copySpecsFromListing('${l.itemId}', this)">
+              <img src="${l.image || ''}" alt="" onerror="this.style.display='none'">
+              <div class="sr-info">
+                <div class="sr-title">${escHtml(l.title)}</div>
+                <div><span class="sr-price">$${parseFloat(l.price || 0).toFixed(2)}</span> &middot; ${escHtml(l.condition || '')}</div>
+              </div>
+              <button class="btn btn-primary btn-xs" onclick="event.stopPropagation(); copySpecsFromListing('${l.itemId}', this)">Use Specs</button>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('specsSearchStatus').textContent = 'No results found';
+        }
+      } catch (err) {
+        document.getElementById('specsSearchStatus').textContent = 'Search failed';
+      }
+    }
+
+    async function copySpecsFromListing(itemId, el) {
+      if (el) { el.disabled = true; el.textContent = 'Loading...'; }
+
+      try {
+        const resp = await fetch(`/api/ebay/listing-specs?itemId=${itemId}`);
+        const data = await resp.json();
+
+        if (data.success && data.specs) {
+          // Merge: copied specs fill gaps in existing
+          const current = collectSpecs();
+          const merged = { ...current };
+          for (const [k, v] of Object.entries(data.specs)) {
+            if (v && v !== 'Does not apply') merged[k] = v;
+          }
+          renderSpecs(merged);
+          document.getElementById('copySpecsModal').classList.remove('active');
+          document.querySelector('.tab[data-tab="specs"]').click();
+          showToast(`Copied ${Object.keys(data.specs).length} specs`);
+        } else {
+          showToast(data.error || 'No specs found on listing', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to copy specs', 'error');
+      }
+      if (el) { el.disabled = false; el.textContent = 'Use Specs'; }
+    }
+
+    // ── AI Review (Claude) ──
+    document.getElementById('aiReviewBtn').addEventListener('click', async () => {
+      if (!currentItemData) return;
+      const btn = document.getElementById('aiReviewBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner spinner-sm"></span>Reviewing...';
+
+      try {
+        const title = document.getElementById('editTitle').value;
+        const description = document.getElementById('editDescription').value;
+        const specs = collectSpecs();
+
+        const prompt = `You are an expert eBay listing optimizer. Review and improve this existing eBay listing.
+
+Current Title: ${title}
+Current Item Specifics: ${JSON.stringify(specs)}
+Current Description (HTML): ${description.substring(0, 3000)}
+
+Instructions:
+- Improve the title for eBay Cassini search algorithm (max 80 chars). Pack relevant keywords.
+- Enhance the HTML description: improve formatting, add missing details, make it more professional. Keep the existing HTML structure/styling.
+- Only improve what needs it. If the listing is already good, make minimal changes.
+- Keep the item condition keyword at the END of the title if present.
+
+Respond in EXACTLY this format:
+TITLE: [improved title]
+HTML: [improved html description]`;
+
+        const resp = await fetch('/api/claude/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], temperature: 0.4, max_tokens: 4096 }),
+        });
+        const data = await resp.json();
+        const content = data.choices?.[0]?.message?.content || '';
+
+        // Parse response
+        const titleMatch = content.match(/TITLE:\s*(.+?)(?:\n|$)/);
+        const htmlMatch = content.match(/HTML:\s*([\s\S]+?)$/);
+
+        let updated = false;
+        if (titleMatch && titleMatch[1].trim()) {
+          document.getElementById('editTitle').value = titleMatch[1].trim().substring(0, 80);
+          updated = true;
+        }
+        if (htmlMatch && htmlMatch[1].trim()) {
+          document.getElementById('editDescription').value = htmlMatch[1].trim();
+          updated = true;
+        }
+
+        if (updated) {
+          showToast('AI review applied — check title & description');
+        } else {
+          showToast('AI returned no improvements', 'error');
+        }
+      } catch (err) {
+        console.error('AI review error:', err);
+        showToast('AI review failed', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'AI Review';
+      }
+    });
+
+    // ══════════════════════════════════════════════
+    // ── SAVE / END / RELIST
+    // ══════════════════════════════════════════════
+
     document.getElementById('saveListingBtn').addEventListener('click', async () => {
       if (!currentItemId) return;
       const btn = document.getElementById('saveListingBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      // Collect specs
-      const specifics = {};
-      document.querySelectorAll('#specsBody tr').forEach(tr => {
-        const input = tr.querySelector('input[data-spec]');
-        if (input) specifics[input.dataset.spec] = input.value;
-      });
+      btn.disabled = true; btn.textContent = 'Saving...';
 
       const body = {
         title: document.getElementById('editTitle').value,
@@ -789,7 +1227,7 @@
         bestOfferEnabled: document.getElementById('editBestOffer').checked,
         autoAcceptPrice: document.getElementById('editAutoAccept').value,
         minBestOfferPrice: document.getElementById('editMinOffer').value,
-        specifics,
+        specifics: collectSpecs(),
       };
 
       try {
@@ -806,12 +1244,8 @@
         } else {
           showToast(data.error || 'Failed to update', 'error');
         }
-      } catch (err) {
-        showToast('Failed to update listing', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Changes';
-      }
+      } catch (err) { showToast('Failed to update listing', 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
     });
 
     // ── End listing ──
@@ -826,16 +1260,31 @@
       if (currentItemId) openEndModal(currentItemId);
     });
 
+    document.getElementById('relistListingBtn').addEventListener('click', async () => {
+      if (!currentItemId) return;
+      const btn = document.getElementById('relistListingBtn');
+      btn.disabled = true; btn.textContent = 'Relisting...';
+      try {
+        const resp = await fetch(`/api/my-listings/${currentItemId}/relist`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          showToast(`Relisted! New Item ID: ${data.newItemId}`);
+          document.getElementById('detailModal').classList.remove('active');
+          loadListings(currentPage);
+        } else { showToast(data.error || 'Failed to relist', 'error'); }
+      } catch (err) { showToast('Failed to relist item', 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'Relist'; }
+    });
+
     document.getElementById('endConfirmBtn').addEventListener('click', async () => {
       if (!endTargetId) return;
       const btn = document.getElementById('endConfirmBtn');
-      btn.disabled = true;
-      btn.textContent = 'Ending...';
-
+      btn.disabled = true; btn.textContent = 'Ending...';
       try {
         const resp = await fetch(`/api/my-listings/${endTargetId}/end`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason: document.getElementById('endReason').value }),
         });
         const data = await resp.json();
@@ -844,48 +1293,30 @@
           document.getElementById('endModal').classList.remove('active');
           document.getElementById('detailModal').classList.remove('active');
           loadListings(currentPage);
-        } else {
-          showToast(data.error || 'Failed to end listing', 'error');
-        }
-      } catch (err) {
-        showToast('Failed to end listing', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'End Listing';
-      }
+        } else { showToast(data.error || 'Failed to end listing', 'error'); }
+      } catch (err) { showToast('Failed to end listing', 'error'); }
+      finally { btn.disabled = false; btn.textContent = 'End Listing'; }
     });
 
     // ── Modal close handlers ──
-    document.getElementById('modalClose').addEventListener('click', () => {
-      document.getElementById('detailModal').classList.remove('active');
-    });
-    document.getElementById('cancelEditBtn').addEventListener('click', () => {
-      document.getElementById('detailModal').classList.remove('active');
-    });
-    document.getElementById('endModalClose').addEventListener('click', () => {
-      document.getElementById('endModal').classList.remove('active');
-    });
-    document.getElementById('endCancelBtn').addEventListener('click', () => {
-      document.getElementById('endModal').classList.remove('active');
-    });
+    document.getElementById('modalClose').addEventListener('click', () => document.getElementById('detailModal').classList.remove('active'));
+    document.getElementById('cancelEditBtn').addEventListener('click', () => document.getElementById('detailModal').classList.remove('active'));
+    document.getElementById('endModalClose').addEventListener('click', () => document.getElementById('endModal').classList.remove('active'));
+    document.getElementById('endCancelBtn').addEventListener('click', () => document.getElementById('endModal').classList.remove('active'));
+    document.getElementById('copySpecsClose').addEventListener('click', () => document.getElementById('copySpecsModal').classList.remove('active'));
+    document.getElementById('soldModalClose').addEventListener('click', () => document.getElementById('soldModal').classList.remove('active'));
 
     // Close modals on overlay click
-    document.getElementById('detailModal').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
-    });
-    document.getElementById('endModal').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
-    });
+    for (const id of ['detailModal', 'endModal', 'copySpecsModal', 'soldModal']) {
+      document.getElementById(id).addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+      });
+    }
 
     // ── Logout ──
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/login.html';
-    });
-
-    // ── Best offer toggle ──
-    document.getElementById('editBestOffer').addEventListener('change', (e) => {
-      document.getElementById('bestOfferFields').style.display = e.target.checked ? 'grid' : 'none';
     });
 
     // ── Init ──

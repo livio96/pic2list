@@ -19,6 +19,49 @@
     nav { margin-left: auto; display: flex; gap: 16px; align-items: center; }
     nav a { font-size: 13px; color: #4f6ef7; text-decoration: none; font-weight: 600; }
     nav a:hover { text-decoration: underline; }
+
+    /* Listing Meter */
+    .listing-meter {
+      display: none; align-items: center; gap: 8px; padding: 4px 12px;
+      background: #f0f3ff; border-radius: 20px; font-size: 12px; font-weight: 600;
+      color: #3a3f5c; white-space: nowrap; cursor: pointer; position: relative;
+    }
+    .listing-meter:hover { background: #e4e9ff; }
+    .listing-meter .meter-icon { font-size: 14px; }
+    .listing-meter .meter-bar {
+      width: 80px; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden;
+    }
+    .listing-meter .meter-fill {
+      height: 100%; background: linear-gradient(90deg, #4f6ef7, #22c55e);
+      border-radius: 4px; transition: width 0.6s ease; min-width: 0;
+    }
+    .listing-meter .meter-text { color: #4f6ef7; }
+    .listing-meter.lifetime {
+      background: linear-gradient(135deg, #ecfdf5, #f0fdf4); border: 1px solid #bbf7d0;
+    }
+    .listing-meter.lifetime:hover { background: #d1fae5; }
+    .listing-meter.lifetime .meter-text { color: #059669; font-weight: 700; }
+    .listing-meter.lifetime .meter-fill { background: linear-gradient(90deg, #22c55e, #10b981); }
+    .meter-popup {
+      display: none; position: absolute; top: calc(100% + 10px); right: 0;
+      width: 300px; background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15); padding: 20px;
+      z-index: 1000; text-align: center; white-space: normal; cursor: default;
+    }
+    .meter-popup::before {
+      content: ''; position: absolute; top: -6px; right: 24px;
+      width: 12px; height: 12px; background: #fff;
+      transform: rotate(45deg); box-shadow: -2px -2px 4px rgba(0,0,0,0.04);
+    }
+    .meter-popup.open { display: block; }
+    .meter-popup .popup-trophy { font-size: 36px; margin-bottom: 8px; }
+    .meter-popup .popup-title { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
+    .meter-popup .popup-desc { font-size: 13px; color: #555b6e; line-height: 1.5; margin-bottom: 12px; }
+    .meter-popup .popup-progress { font-size: 20px; font-weight: 800; color: #4f6ef7; }
+    .meter-popup .popup-remaining { font-size: 12px; color: #8b8fa3; margin-top: 4px; }
+    .meter-popup.lifetime-popup .popup-progress { color: #059669; }
+    .meter-popup .popup-bar { width: 100%; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; margin: 12px 0 8px; }
+    .meter-popup .popup-bar-fill { height: 100%; background: linear-gradient(90deg, #4f6ef7, #22c55e); border-radius: 5px; transition: width 0.6s ease; }
     .btn {
       padding: 10px 24px; border: none; border-radius: 10px;
       font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
@@ -120,7 +163,7 @@
     }
     .modal-overlay.active { display: flex; justify-content: center; align-items: flex-start; }
     .modal {
-      background: #fff; border-radius: 16px; width: 100%; max-width: 960px;
+      background: #fff; border-radius: 16px; width: 100%; max-width: 1200px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.2); position: relative;
     }
     .modal-header {
@@ -164,6 +207,123 @@
       border-bottom: 1px solid #e5e7eb; margin-bottom: 4px;
     }
     .ai-toolbar .btn { font-size: 11px; padding: 5px 10px; border-radius: 6px; }
+
+    /* Generate Images button */
+    .btn-img-gen {
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      color: #fff; border: none; cursor: pointer; font-weight: 600;
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+    .btn-img-gen:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+    .btn-img-gen:disabled { background: #c4b5fd; color: #fff; cursor: not-allowed; transform: none; }
+
+    /* Generate Images overlay */
+    .gen-img-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1200; padding: 20px;
+    }
+    .gen-img-overlay.open { display: flex; }
+    .gen-img-modal {
+      background: #fff; border-radius: 18px; max-width: 1400px; width: 100%;
+      max-height: 92vh; overflow-y: auto; padding: 28px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+    }
+    .gen-img-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    }
+    .gen-img-header h3 { font-size: 19px; font-weight: 700; color: #1a1a2e; }
+    .gen-img-subtitle { font-size: 13px; color: #8b8fa3; margin-bottom: 20px; }
+    .gen-img-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .gen-img-card { border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #f8f9fb; }
+    .gen-img-label {
+      padding: 8px 14px; font-size: 11px; font-weight: 700;
+      color: #6366f1; text-transform: uppercase; letter-spacing: 0.6px;
+      background: #fff; border-bottom: 1px solid #e5e7eb;
+    }
+    .gen-img-canvas { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
+    .gen-img-canvas-wrap { position: relative; cursor: zoom-in; }
+    .gen-img-canvas-wrap:hover .gen-img-zoom-hint { opacity: 1; }
+    .gen-img-zoom-hint {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.22); color: #fff; font-size: 28px;
+      opacity: 0; transition: opacity 0.15s; pointer-events: none;
+    }
+    .gen-img-btn-row {
+      display: flex; gap: 8px; padding: 10px 12px;
+      background: #fff; border-top: 1px solid #e5e7eb;
+    }
+    .gen-img-loading {
+      text-align: center; padding: 60px 20px;
+      color: #8b8fa3; font-size: 15px; grid-column: 1/-1;
+    }
+    .gen-img-error {
+      text-align: center; padding: 40px 20px;
+      color: #ef4444; font-size: 14px; grid-column: 1/-1;
+    }
+
+    /* Lightbox */
+    #infLightbox {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+      display: none; align-items: center; justify-content: center;
+      z-index: 9999; padding: 20px;
+    }
+    #infLightbox.open { display: flex; }
+    #infLightbox img {
+      max-width: 100%; max-height: 100%; object-fit: contain;
+      border-radius: 8px; box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+    }
+    #infLightboxClose {
+      position: fixed; top: 16px; right: 20px;
+      background: rgba(255,255,255,0.15); border: none; color: #fff;
+      font-size: 28px; line-height: 1; width: 44px; height: 44px;
+      border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    #infLightboxClose:hover { background: rgba(255,255,255,0.28); }
+
+    /* Image Editor */
+    .editor-toolbar {
+      display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center;
+    }
+    .editor-toolbar button {
+      padding: 6px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; color: #555b6e; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px;
+    }
+    .editor-toolbar button:hover { border-color: #4f6ef7; color: #4f6ef7; }
+    .editor-toolbar button.active { background: #4f6ef7; color: #fff; border-color: #4f6ef7; }
+    .editor-canvas-wrap {
+      position: relative; display: inline-block; border: 1px solid #e5e7eb;
+      border-radius: 8px; overflow: hidden; background: #f0f1f3; max-width: 100%;
+    }
+    .editor-canvas-wrap canvas { display: block; max-width: 100%; }
+    .editor-options {
+      display: flex; gap: 12px; align-items: center; margin-top: 12px;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .editor-options label {
+      font-size: 12px; font-weight: 600; color: #555b6e;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .editor-options input[type="color"] {
+      width: 28px; height: 28px; border: 1px solid #d1d5db; border-radius: 6px;
+      padding: 0; cursor: pointer;
+    }
+    .editor-options input[type="range"] { width: 120px; accent-color: #4f6ef7; }
+    .editor-footer { display: flex; gap: 10px; align-items: center; padding: 12px 20px; border-top: 1px solid #e5e7eb; }
+    .editor-footer .spacer { flex: 1; }
+
+    /* Thumbnail edit button */
+    .detail-thumbs { position: relative; }
+    .thumb-wrap { position: relative; display: inline-block; }
+    .thumb-edit-btn {
+      position: absolute; bottom: 3px; left: 3px; width: 22px; height: 22px;
+      background: rgba(79, 110, 247, 0.9); border: none; border-radius: 5px;
+      color: #fff; font-size: 11px; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2); transition: background 0.15s;
+    }
+    .thumb-edit-btn:hover { background: rgba(79, 110, 247, 1); }
 
     /* Form groups */
     .form-group { display: flex; flex-direction: column; gap: 4px; }
@@ -312,6 +472,21 @@
       <a href="/my-listings.html" style="color:#3a3f5c;">My Listings</a>
       <a href="/config.html">Settings</a>
       <a href="/how-it-works.html">How It Works</a>
+      <a href="/users.html" id="navUsers" style="display:none;">Manage Users</a>
+      <div class="listing-meter" id="listingMeter">
+        <span class="meter-icon">&#127942;</span>
+        <div class="meter-bar"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+        <span class="meter-text" id="meterText">0 / 1,000</span>
+        <div class="meter-popup" id="meterPopup">
+          <div class="popup-trophy" id="popupTrophy">&#127942;</div>
+          <div class="popup-title" id="popupTitle">Lifetime Free Membership</div>
+          <div class="popup-desc" id="popupDesc">List <strong>1,000 items</strong> on eBay and unlock <strong>lifetime free access</strong> to LazyListings — no subscription, ever.</div>
+          <div class="popup-bar"><div class="popup-bar-fill" id="popupBarFill" style="width:0%"></div></div>
+          <div class="popup-progress" id="popupProgress">0 / 1,000</div>
+          <div class="popup-remaining" id="popupRemaining">1,000 listings to go</div>
+        </div>
+      </div>
+      <div id="userAvatar" style="width:32px; height:32px; border-radius:50%; background:#4f6ef7; color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; font-weight:700; cursor:default;" title=""></div>
       <button class="btn btn-secondary btn-xs" id="logoutBtn" style="font-size:12px;">Log Out</button>
     </nav>
   </header>
@@ -399,6 +574,7 @@
                 <button class="btn btn-purple" id="aiSpecsBtn" title="Auto-fill specs with AI">AI Fill Specs</button>
                 <button class="btn btn-secondary" id="aiCopySpecsBtn" title="Copy specs from another listing">Copy Specs</button>
                 <button class="btn btn-purple" id="aiReviewBtn" title="AI review & enrich listing">AI Review</button>
+                <button class="btn btn-img-gen btn-sm" id="genImgBtn" title="Generate infographic images">Generate Images</button>
               </div>
 
               <!-- AI Result Panels (shown/hidden dynamically) -->
@@ -496,14 +672,16 @@
 
               <!-- Description Tab -->
               <div class="tab-content" id="tabDescription">
-                <div class="form-group">
-                  <label>HTML Description</label>
-                  <textarea id="editDescription" rows="15" style="font-family:monospace; font-size:12px;"></textarea>
+                <div style="display:flex; gap:16px; height:420px;">
+                  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+                    <label style="margin-bottom:4px;">HTML Code</label>
+                    <textarea id="editDescription" style="flex:1; font-family:monospace; font-size:12px; resize:none;"></textarea>
+                  </div>
+                  <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+                    <label style="margin-bottom:4px;">Preview</label>
+                    <iframe id="descPreview" sandbox="allow-same-origin" style="flex:1; border-radius:8px; border:1px solid #e5e7eb; background:#fff;"></iframe>
+                  </div>
                 </div>
-                <div style="margin-top:8px;">
-                  <button class="btn btn-secondary btn-xs" id="previewDescBtn">Preview</button>
-                </div>
-                <div id="descPreview" style="display:none; margin-top:12px; padding:16px; background:#fafbfc; border-radius:8px; border:1px solid #e5e7eb; font-size:13px;"></div>
               </div>
             </div>
           </div>
@@ -513,7 +691,7 @@
         <button class="btn btn-red btn-sm" id="endListingBtn">End Listing</button>
         <button class="btn btn-green btn-sm" id="relistListingBtn" style="display:none;">Relist</button>
         <button class="btn btn-secondary btn-sm" id="cancelEditBtn">Cancel</button>
-        <button class="btn btn-green btn-sm" id="saveListingBtn">Save Changes</button>
+        <button class="btn btn-green btn-sm" id="saveListingBtn">Update Listing</button>
       </div>
     </div>
   </div>
@@ -581,6 +759,42 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Generate Images Overlay -->
+  <div class="gen-img-overlay" id="genImgOverlay">
+    <div class="gen-img-modal">
+      <div class="gen-img-header">
+        <h3>Generate Infographic Images</h3>
+        <button class="modal-close" id="genImgClose">&times;</button>
+      </div>
+      <p class="gen-img-subtitle">AI-analyzed features rendered as professional product infographics — add them directly to your listing.</p>
+      <div class="gen-img-grid" id="genImgCanvases"></div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="infLightbox">
+    <img id="infLightboxImg" src="" alt="">
+    <button id="infLightboxClose">&times;</button>
+  </div>
+
+  <!-- Image Editor Modal -->
+  <div class="modal-overlay" id="editorOverlay" style="z-index:1100;">
+    <div class="modal" id="editorModal" style="max-width:720px;">
+      <div class="modal-header">
+        <h3 id="editorTitle">Edit Image</h3>
+        <button class="modal-close" id="editorClose">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:16px; display:flex; flex-direction:column; align-items:center;">
+        <div id="editorToolbar"></div>
+        <div id="editorCanvasWrap"></div>
+        <div id="editorOptions"></div>
+      </div>
+      <div class="editor-footer" id="editorFooter"></div>
+    </div>
+  </div>
+
+  <script src="/image-editor.js"></script>
+  <script src="/gen-images.js"></script>
   <script>
     // ── State ──
     let allListings = [];
@@ -610,7 +824,59 @@
     async function checkAuth() {
       const resp = await fetch('/api/auth/me');
       if (!resp.ok) { window.location.href = '/login.html'; return null; }
-      return resp.json();
+      const data = await resp.json();
+      // Populate avatar
+      if (data.firstName) {
+        const avatar = document.getElementById('userAvatar');
+        avatar.textContent = data.firstName.charAt(0).toUpperCase();
+        avatar.title = data.firstName;
+        avatar.style.display = 'flex';
+      }
+      // Show Manage Users for admins
+      if (data.role === 'admin') {
+        document.getElementById('navUsers').style.display = '';
+      }
+      // Load listing meter
+      loadListingMeter();
+      return data;
+    }
+
+    async function loadListingMeter() {
+      try {
+        const resp = await fetch('/api/listings/count');
+        const data = await resp.json();
+        if (!data.success) return;
+        const meter = document.getElementById('listingMeter');
+        const fill = document.getElementById('meterFill');
+        const text = document.getElementById('meterText');
+        const popupBarFill = document.getElementById('popupBarFill');
+        const popupProgress = document.getElementById('popupProgress');
+        const popupRemaining = document.getElementById('popupRemaining');
+        const popupTitle = document.getElementById('popupTitle');
+        const popupDesc = document.getElementById('popupDesc');
+        const popupTrophy = document.getElementById('popupTrophy');
+        const count = data.count || 0;
+        const goal = data.goal || 1000;
+        const pct = Math.min((count / goal) * 100, 100);
+        fill.style.width = pct + '%';
+        popupBarFill.style.width = pct + '%';
+        popupProgress.textContent = count.toLocaleString() + ' / ' + goal.toLocaleString();
+        if (data.lifetime_member) {
+          text.textContent = count.toLocaleString() + ' \u2014 Lifetime Member!';
+          meter.classList.add('lifetime');
+          document.getElementById('meterPopup').classList.add('lifetime-popup');
+          popupTrophy.textContent = '\uD83C\uDF89';
+          popupTitle.textContent = 'You earned Lifetime Free Membership!';
+          popupDesc.innerHTML = 'Congratulations! You\'ve listed <strong>' + count.toLocaleString() + ' items</strong> and unlocked <strong>lifetime free access</strong> to LazyListings.';
+          popupRemaining.textContent = 'Goal reached \u2014 you\'re a lifetime member!';
+          popupProgress.textContent = count.toLocaleString() + ' listings';
+        } else {
+          text.textContent = count.toLocaleString() + ' / ' + goal.toLocaleString();
+          const remaining = goal - count;
+          popupRemaining.textContent = remaining.toLocaleString() + ' listing' + (remaining !== 1 ? 's' : '') + ' to go';
+        }
+        meter.style.display = 'flex';
+      } catch (e) { console.error('Failed to load listing meter:', e); }
     }
 
     // ── Fetch listings ──
@@ -843,8 +1109,48 @@
       mainImg.src = data.pictures[0] || '';
       const strip = document.getElementById('thumbStrip');
       strip.innerHTML = data.pictures.map((url, i) =>
-        `<img src="${url}" class="${i === 0 ? 'active' : ''}" onclick="selectThumb(this, '${url}')">`
+        `<div class="thumb-wrap">
+          <img src="${url}" class="${i === 0 ? 'active' : ''}" onclick="selectThumb(this.parentElement.querySelector('img'), '${url}')">
+          <button class="thumb-edit-btn" data-img-url="${url}" title="Edit image">&#9998;</button>
+        </div>`
       ).join('');
+
+      // Attach edit handlers
+      strip.querySelectorAll('.thumb-edit-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const imgUrl = btn.dataset.imgUrl;
+          const imgIndex = currentItemData.pictures.indexOf(imgUrl);
+          openImageEditor(imgUrl, async ({ dataUrl, base64, blob }) => {
+            // Upload edited image to eBay
+            const resp = await fetch('/api/ebay/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ base64, filename: 'edited.jpg', mimeType: 'image/jpeg' }),
+            });
+            const uploadData = await resp.json();
+            if (!uploadData.success) { showToast(uploadData.error || 'Upload failed', 'error'); return; }
+
+            // Replace old URL with new one
+            const newUrl = uploadData.url;
+            const allUrls = [...currentItemData.pictures];
+            if (imgIndex >= 0) allUrls[imgIndex] = newUrl;
+            else allUrls.push(newUrl);
+
+            const revResp = await fetch(`/api/my-listings/${currentItemId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pictureUrls: allUrls }),
+            });
+            const revData = await revResp.json();
+            if (!revData.success) { showToast(revData.error || 'Failed to update listing', 'error'); return; }
+
+            currentItemData.pictures = allUrls;
+            populateModal(currentItemData);
+            showToast('Image updated');
+          });
+        });
+      });
 
       document.getElementById('editTitle').value = data.title || '';
       document.getElementById('editPrice').value = data.price || '';
@@ -858,7 +1164,7 @@
       document.getElementById('editMinOffer').value = data.minBestOfferPrice || '';
       document.getElementById('editDescription').value = data.description || '';
       document.getElementById('viewOnEbay').href = data.listingUrl || '#';
-      document.getElementById('descPreview').style.display = 'none';
+      updateDescPreview(data.description || '');
 
       renderSpecs(data.specifics || {});
       // Reset to details tab
@@ -918,16 +1224,81 @@
       });
     });
 
-    document.getElementById('previewDescBtn').addEventListener('click', () => {
-      const preview = document.getElementById('descPreview');
-      if (preview.style.display === 'none') {
-        preview.innerHTML = document.getElementById('editDescription').value;
-        preview.style.display = 'block';
-      } else { preview.style.display = 'none'; }
+    function updateDescPreview(html) {
+      const iframe = document.getElementById('descPreview');
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open();
+      doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:12px;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;color:#222;}</style></head><body>${html}</body></html>`);
+      doc.close();
+    }
+
+    document.getElementById('editDescription').addEventListener('input', () => {
+      updateDescPreview(document.getElementById('editDescription').value);
     });
 
     document.getElementById('editBestOffer').addEventListener('change', (e) => {
       document.getElementById('bestOfferFields').style.display = e.target.checked ? 'grid' : 'none';
+    });
+
+    // ══════════════════════════════════════════════
+    // ── GENERATE IMAGES
+    // ══════════════════════════════════════════════
+
+    document.getElementById('genImgBtn').addEventListener('click', () => {
+      if (!currentItemData) return;
+      const btn = document.getElementById('genImgBtn');
+      generateImagesOverlay({
+        title: currentItemData.title,
+        description: currentItemData.description || document.getElementById('editDescription').value,
+        imageUrls: currentItemData.pictures || [],
+        triggerBtn: btn,
+        onAdd: async ({ dataUrl, filename }) => {
+          // Upload to eBay first
+          const base64 = dataUrl.split(',')[1];
+          const resp = await fetch('/api/ebay/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64, filename, mimeType: 'image/png' }),
+          });
+          const data = await resp.json();
+          if (!data.success) throw new Error(data.error || 'Upload failed');
+
+          // Add to current listing's pictures via ReviseItem
+          const newUrl = data.url;
+          const allUrls = [...(currentItemData.pictures || []), newUrl];
+          const revResp = await fetch(`/api/my-listings/${currentItemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pictureUrls: allUrls }),
+          });
+          const revData = await revResp.json();
+          if (!revData.success) throw new Error(revData.error || 'Failed to update listing');
+
+          // Update local state and UI
+          currentItemData.pictures = allUrls;
+          const strip = document.getElementById('thumbStrip');
+          const thumb = document.createElement('img');
+          thumb.src = newUrl;
+          thumb.onclick = function() { selectThumb(this, newUrl); };
+          strip.appendChild(thumb);
+          showToast('Image added to listing');
+        },
+      });
+    });
+
+    document.getElementById('genImgClose').addEventListener('click', () => {
+      document.getElementById('genImgOverlay').classList.remove('open');
+    });
+    document.getElementById('genImgOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+
+    // Lightbox
+    document.getElementById('infLightboxClose').addEventListener('click', () => {
+      document.getElementById('infLightbox').classList.remove('open');
+    });
+    document.getElementById('infLightbox').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
     });
 
     // ══════════════════════════════════════════════
@@ -1024,21 +1395,23 @@
 
         // 2. Build prompt for AI
         const currentSpecs = collectSpecs();
-        const aspectDefs = aspectsData.aspects.slice(0, 40).map(a => {
+        const description = document.getElementById('editDescription').value || '';
+        const aspectDefs = aspectsData.aspects.map(a => {
           let def = `${a.name} (${a.usage || 'OPTIONAL'})`;
-          if (a.values && a.values.length > 0) def += `: [${a.values.slice(0, 20).join(', ')}]`;
+          if (a.values && a.values.length > 0) def += `: [${a.values.join(', ')}]`;
           return def;
         }).join('\n');
 
         const prompt = `You are an eBay listing expert. Given this product and its current specs, fill in ALL item specifics for the eBay category.
 
 Product Title: ${currentItemData.title}
+Product Description: ${description.replace(/<[^>]*>/g, ' ').substring(0, 1500)}
 Current Specs: ${JSON.stringify(currentSpecs)}
 
 Category Aspects (name, usage, allowed values):
 ${aspectDefs}
 
-Return ONLY a valid JSON object mapping aspect names to values. Use allowed values when provided. For free-text fields, infer from the title and current specs. Only include aspects you can confidently fill. Example: {"Brand": "Sony", "Type": "Camera"}`;
+Return ONLY a valid JSON object mapping aspect names to values. Use allowed values when provided. For free-text fields, infer from the title, description, and current specs. Only include aspects you can confidently fill. Example: {"Brand": "Sony", "Type": "Camera"}`;
 
         const aiResp = await fetch('/api/openai/chat', {
           method: 'POST',
@@ -1245,7 +1618,7 @@ HTML: [improved html description]`;
           showToast(data.error || 'Failed to update', 'error');
         }
       } catch (err) { showToast('Failed to update listing', 'error'); }
-      finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      finally { btn.disabled = false; btn.textContent = 'Update Listing'; }
     });
 
     // ── End listing ──
@@ -1319,7 +1692,17 @@ HTML: [improved html description]`;
       window.location.href = '/login.html';
     });
 
+    // Meter popup toggle
+    document.getElementById('listingMeter').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('meterPopup').classList.toggle('open');
+    });
+    document.addEventListener('click', () => {
+      document.getElementById('meterPopup').classList.remove('open');
+    });
+
     // ── Init ──
+    initImageEditor();
     (async () => {
       const user = await checkAuth();
       if (!user) return;

@@ -192,11 +192,17 @@ router.get('/:itemId', async (req, res) => {
       if (name && value) specifics[name] = value;
     }
 
-    // Parse description (CDATA)
+    // Parse description (CDATA or HTML-encoded)
     let description = '';
     const descMatch = text.match(/<Description>([\s\S]*?)<\/Description>/);
     if (descMatch) {
       description = descMatch[1].replace(/<!\[CDATA\[/, '').replace(/\]\]>/, '');
+      // Decode HTML entities if eBay returned encoded HTML
+      if (description.includes('&lt;') || description.includes('&amp;')) {
+        description = description
+          .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+      }
     }
 
     // Parse price
@@ -345,9 +351,9 @@ router.put('/:itemId', requireRole('admin', 'publisher'), async (req, res) => {
   if (sku !== undefined) {
     xmlParts.push(`    <SKU>${escapeXml(sku)}</SKU>`);
   }
-  if (upc !== undefined) {
+  if (upc !== undefined && /^(\d{8}|\d{12,14}|Does not apply)$/i.test((upc || '').trim())) {
     xmlParts.push('    <ProductListingDetails>');
-    xmlParts.push(`      <UPC>${escapeXml(upc)}</UPC>`);
+    xmlParts.push(`      <UPC>${escapeXml(upc.trim())}</UPC>`);
     xmlParts.push('    </ProductListingDetails>');
   }
   if (pictureUrls && pictureUrls.length > 0) {

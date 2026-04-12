@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Listings — LazyListings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9; color: #1a1a2e; min-height: 100vh;
+    }
+    header {
+      padding: 14px 24px; background: #fff; border-bottom: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 14px;
+    }
+    header h1 { font-size: 24px; font-weight: 800; color: #4f6ef7; letter-spacing: -0.5px; }
+    header span { font-size: 13px; color: #8b8fa3; margin-top: 2px; }
+    nav { margin-left: auto; display: flex; gap: 16px; align-items: center; }
+    nav a { font-size: 13px; color: #4f6ef7; text-decoration: none; font-weight: 600; }
+    nav a:hover { text-decoration: underline; }
+    .btn {
+      padding: 10px 24px; border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary { background: #4f6ef7; color: #fff; }
+    .btn-primary:hover { background: #3b5ce4; }
+    .btn-primary:disabled { background: #c5cee8; color: #8895b3; cursor: not-allowed; transform: none; }
+    .btn-secondary { background: #e9ecef; color: #555b6e; }
+    .btn-secondary:hover { background: #dde1e6; }
+    .btn-green { background: #22c55e; color: #fff; }
+    .btn-green:hover { background: #16a34a; }
+    .btn-green:disabled { background: #bbf7d0; color: #86efac; cursor: not-allowed; transform: none; }
+    .btn-red { background: #ef4444; color: #fff; }
+    .btn-red:hover { background: #dc2626; }
+    .btn-sm { padding: 7px 16px; font-size: 12px; }
+    .btn-xs { padding: 5px 12px; font-size: 11px; border-radius: 8px; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid #d1d5db; border-top-color: #4f6ef7; border-radius: 50%;
+      animation: spin 0.6s linear infinite; margin-right: 8px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+    /* Top bar */
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .top-bar h2 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
+    .top-bar .stats { font-size: 13px; color: #8b8fa3; }
+    .search-box {
+      padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 13px; width: 280px; outline: none;
+    }
+    .search-box:focus { border-color: #4f6ef7; box-shadow: 0 0 0 3px rgba(79,110,247,0.1); }
+
+    /* Listings table */
+    .listings-table {
+      width: 100%; border-collapse: collapse; background: #fff;
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .listings-table th {
+      padding: 12px 16px; text-align: left; font-size: 11px;
+      font-weight: 700; color: #8b8fa3; text-transform: uppercase;
+      letter-spacing: 0.5px; background: #fafbfc; border-bottom: 1px solid #e5e7eb;
+      white-space: nowrap;
+    }
+    .listings-table td {
+      padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f0f1f3;
+      vertical-align: middle;
+    }
+    .listings-table tr:hover td { background: #f8f9ff; }
+    .listings-table tr { cursor: pointer; }
+    .listing-thumb {
+      width: 50px; height: 50px; border-radius: 8px; object-fit: cover;
+      background: #e9ecef;
+    }
+    .listing-title {
+      font-weight: 600; color: #1a1a2e; max-width: 320px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .listing-price { font-weight: 700; color: #22c55e; }
+    .listing-sku { color: #8b8fa3; font-size: 11px; }
+    .listing-qty { font-weight: 600; }
+    .listing-watchers { color: #f59e0b; font-weight: 600; }
+    .badge {
+      display: inline-block; padding: 3px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge-active { background: #dcfce7; color: #16a34a; }
+    .badge-auction { background: #fef3c7; color: #d97706; }
+
+    /* Pagination */
+    .pagination {
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; margin-top: 20px;
+    }
+    .pagination button {
+      padding: 8px 16px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .pagination button:hover { background: #f0f3ff; border-color: #4f6ef7; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination .page-info { font-size: 13px; color: #8b8fa3; }
+
+    /* Detail modal */
+    .modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;
+      padding: 40px 20px;
+    }
+    .modal-overlay.active { display: flex; justify-content: center; align-items: flex-start; }
+    .modal {
+      background: #fff; border-radius: 16px; width: 100%; max-width: 900px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2); position: relative;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; border-bottom: 1px solid #e5e7eb;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: #f0f1f3; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { background: #e5e7eb; }
+    .modal-body { padding: 24px; max-height: 70vh; overflow-y: auto; }
+    .modal-footer {
+      padding: 16px 24px; border-top: 1px solid #e5e7eb;
+      display: flex; gap: 10px; justify-content: flex-end;
+    }
+
+    /* Detail layout */
+    .detail-grid {
+      display: grid; grid-template-columns: 280px 1fr; gap: 24px;
+    }
+    @media (max-width: 700px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-images { display: flex; flex-direction: column; gap: 8px; }
+    .detail-main-img {
+      width: 100%; aspect-ratio: 1; border-radius: 10px; object-fit: contain;
+      background: #f4f6f9; border: 1px solid #e5e7eb;
+    }
+    .detail-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .detail-thumbs img {
+      width: 52px; height: 52px; border-radius: 6px; object-fit: cover;
+      cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s;
+    }
+    .detail-thumbs img:hover, .detail-thumbs img.active { border-color: #4f6ef7; }
+    .detail-info { display: flex; flex-direction: column; gap: 16px; }
+
+    /* Form groups */
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label {
+      font-size: 11px; font-weight: 700; color: #8b8fa3;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+      font-size: 13px; outline: none; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: #4f6ef7; box-shadow: 0 0 0 3px rgba(79,110,247,0.1);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    /* Specs table */
+    .specs-section { margin-top: 16px; }
+    .specs-section h4 {
+      font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #3a3f5c;
+    }
+    .specs-table { width: 100%; border-collapse: collapse; }
+    .specs-table td {
+      padding: 6px 10px; font-size: 12px; border-bottom: 1px solid #f0f1f3;
+    }
+    .specs-table td:first-child { font-weight: 600; color: #555b6e; width: 40%; }
+    .specs-table input {
+      width: 100%; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;
+      font-size: 12px; outline: none;
+    }
+    .specs-table input:focus { border-color: #4f6ef7; }
+    .spec-remove {
+      background: none; border: none; color: #ef4444; cursor: pointer;
+      font-size: 14px; padding: 2px 6px;
+    }
+    .spec-add-row { display: flex; gap: 8px; margin-top: 8px; }
+    .spec-add-row input { flex: 1; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 12px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px;
+    }
+    .tab {
+      padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -2px; color: #8b8fa3;
+      background: none; border-top: none; border-left: none; border-right: none;
+    }
+    .tab:hover { color: #3a3f5c; }
+    .tab.active { color: #4f6ef7; border-bottom-color: #4f6ef7; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Loading state */
+    .loading-overlay {
+      display: flex; align-items: center; justify-content: center;
+      padding: 60px; color: #8b8fa3; font-size: 14px;
+    }
+    .empty-state {
+      text-align: center; padding: 60px 20px; color: #8b8fa3;
+    }
+    .empty-state h3 { font-size: 18px; color: #555b6e; margin-bottom: 8px; }
+
+    /* Checkbox row */
+    .check-row { display: flex; align-items: center; gap: 8px; }
+    .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4f6ef7; }
+    .check-row label { font-size: 13px; color: #3a3f5c; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      border-radius: 10px; font-size: 13px; font-weight: 600; color: #fff;
+      z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .toast-success { background: #22c55e; }
+    .toast-error { background: #ef4444; }
+
+    /* Bulk actions */
+    .bulk-bar {
+      display: none; align-items: center; gap: 12px; padding: 10px 16px;
+      background: #f0f3ff; border-radius: 10px; margin-bottom: 16px;
+    }
+    .bulk-bar.active { display: flex; }
+    .bulk-bar span { font-size: 13px; font-weight: 600; color: #3a3f5c; }
+
+    /* Ebay link */
+    .ebay-link {
+      color: #4f6ef7; text-decoration: none; font-size: 12px; font-weight: 600;
+    }
+    .ebay-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LazyListings</h1>
+    <span>Manage your eBay listings</span>
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/my-listings.html" style="color:#3a3f5c;">My Listings</a>
+      <a href="/config.html">Settings</a>
+      <a href="/how-it-works.html">How It Works</a>
+      <button class="btn btn-secondary btn-xs" id="logoutBtn" style="font-size:12px;">Log Out</button>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="top-bar">
+      <div>
+        <h2>My eBay Listings</h2>
+        <span class="stats" id="statsText">Loading...</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input type="text" class="search-box" id="searchBox" placeholder="Search listings...">
+        <button class="btn btn-primary btn-sm" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="bulk-bar" id="bulkBar">
+      <span id="bulkCount">0 selected</span>
+      <button class="btn btn-red btn-sm" id="bulkEndBtn">End Selected</button>
+      <button class="btn btn-secondary btn-sm" id="bulkCancelBtn">Cancel</button>
+    </div>
+
+    <div id="loadingState" class="loading-overlay">
+      <span class="spinner"></span> Loading your eBay listings...
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <h3>No Active Listings</h3>
+      <p>You don't have any active eBay listings, or your eBay account is not connected.</p>
+      <a href="/config.html" class="btn btn-primary btn-sm" style="display:inline-block; margin-top:12px;">Connect eBay</a>
+    </div>
+
+    <table class="listings-table" id="listingsTable" style="display:none;">
+      <thead>
+        <tr>
+          <th style="width:30px;"><input type="checkbox" id="selectAll"></th>
+          <th style="width:60px;">Image</th>
+          <th>Title</th>
+          <th>SKU</th>
+          <th>Price</th>
+          <th>Qty</th>
+          <th>Sold</th>
+          <th>Watchers</th>
+          <th>Status</th>
+          <th style="width:80px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="listingsBody"></tbody>
+    </table>
+
+    <div class="pagination" id="pagination" style="display:none;">
+      <button id="prevPage" disabled>&larr; Prev</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button id="nextPage" disabled>Next &rarr;</button>
+    </div>
+  </div>
+
+  <!-- Detail / Edit Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Listing Details</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalLoading" class="loading-overlay">
+          <span class="spinner"></span> Loading details...
+        </div>
+        <div id="modalContent" style="display:none;">
+          <div class="detail-grid">
+            <div class="detail-images">
+              <img class="detail-main-img" id="mainImage" src="" alt="">
+              <div class="detail-thumbs" id="thumbStrip"></div>
+            </div>
+            <div class="detail-info">
+              <div class="tabs">
+                <button class="tab active" data-tab="details">Details</button>
+                <button class="tab" data-tab="specs">Item Specifics</button>
+                <button class="tab" data-tab="description">Description</button>
+              </div>
+
+              <!-- Details Tab -->
+              <div class="tab-content active" id="tabDetails">
+                <div class="form-group">
+                  <label>Title (max 80 chars)</label>
+                  <input type="text" id="editTitle" maxlength="80">
+                </div>
+                <div class="form-row" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label>Price (USD)</label>
+                    <input type="number" id="editPrice" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="number" id="editQuantity" min="1">
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" id="editSku">
+                  </div>
+                  <div class="form-group">
+                    <label>Condition</label>
+                    <select id="editCondition">
+                      <option value="1000">New</option>
+                      <option value="1500">New other</option>
+                      <option value="1750">New with defects</option>
+                      <option value="2000">Certified Refurbished</option>
+                      <option value="2500">Seller Refurbished</option>
+                      <option value="3000">Used</option>
+                      <option value="4000">Very Good</option>
+                      <option value="5000">Good</option>
+                      <option value="6000">Acceptable</option>
+                      <option value="7000">For parts or not working</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top:12px;">
+                  <div class="form-group">
+                    <label>UPC</label>
+                    <input type="text" id="editUpc">
+                  </div>
+                  <div class="form-group">
+                    <label>Category</label>
+                    <input type="text" id="editCategory" disabled style="background:#f4f6f9;">
+                  </div>
+                </div>
+                <div style="margin-top:12px;">
+                  <div class="check-row">
+                    <input type="checkbox" id="editBestOffer">
+                    <label for="editBestOffer">Best Offer Enabled</label>
+                  </div>
+                  <div class="form-row" style="margin-top:8px;" id="bestOfferFields">
+                    <div class="form-group">
+                      <label>Auto Accept Price</label>
+                      <input type="number" id="editAutoAccept" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                      <label>Min Best Offer Price</label>
+                      <input type="number" id="editMinOffer" step="0.01" min="0">
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:12px;">
+                  <a href="#" class="ebay-link" id="viewOnEbay" target="_blank">View on eBay &rarr;</a>
+                </div>
+              </div>
+
+              <!-- Specs Tab -->
+              <div class="tab-content" id="tabSpecs">
+                <div class="specs-section">
+                  <h4>Item Specifics</h4>
+                  <table class="specs-table" id="specsTable">
+                    <tbody id="specsBody"></tbody>
+                  </table>
+                  <div class="spec-add-row">
+                    <input type="text" id="newSpecName" placeholder="Name">
+                    <input type="text" id="newSpecValue" placeholder="Value">
+                    <button class="btn btn-secondary btn-xs" id="addSpecBtn">Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Description Tab -->
+              <div class="tab-content" id="tabDescription">
+                <div class="form-group">
+                  <label>HTML Description</label>
+                  <textarea id="editDescription" rows="15" style="font-family:monospace; font-size:12px;"></textarea>
+                </div>
+                <div style="margin-top:8px;">
+                  <button class="btn btn-secondary btn-xs" id="previewDescBtn">Preview</button>
+                </div>
+                <div id="descPreview" style="display:none; margin-top:12px; padding:16px; background:#fafbfc; border-radius:8px; border:1px solid #e5e7eb; font-size:13px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-red btn-sm" id="endListingBtn">End Listing</button>
+        <button class="btn btn-secondary btn-sm" id="cancelEditBtn">Cancel</button>
+        <button class="btn btn-green btn-sm" id="saveListingBtn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Listing Confirmation Modal -->
+  <div class="modal-overlay" id="endModal">
+    <div class="modal" style="max-width:440px;">
+      <div class="modal-header">
+        <h3>End Listing</h3>
+        <button class="modal-close" id="endModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:14px; margin-bottom:16px;">Are you sure you want to end this listing?</p>
+        <div class="form-group">
+          <label>Reason</label>
+          <select id="endReason">
+            <option value="NotAvailable">Not Available</option>
+            <option value="Incorrect">Incorrect</option>
+            <option value="LostOrBroken">Lost or Broken</option>
+            <option value="OtherListingError">Other Listing Error</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" id="endCancelBtn">Cancel</button>
+        <button class="btn btn-red btn-sm" id="endConfirmBtn">End Listing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Description Preview Modal -->
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ── State ──
+    let allListings = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalEntries = 0;
+    let currentItemId = null;
+    let currentItemData = null;
+    let selectedIds = new Set();
+
+    // ── Toast ──
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast toast-${type} show`;
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ── Auth check ──
+    async function checkAuth() {
+      const resp = await fetch('/api/auth/me');
+      if (!resp.ok) { window.location.href = '/login.html'; return null; }
+      return resp.json();
+    }
+
+    // ── Fetch listings ──
+    async function loadListings(page = 1) {
+      document.getElementById('loadingState').style.display = 'flex';
+      document.getElementById('listingsTable').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('pagination').style.display = 'none';
+      selectedIds.clear();
+      updateBulkBar();
+
+      try {
+        const resp = await fetch(`/api/my-listings?page=${page}&perPage=50`);
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          document.getElementById('loadingState').style.display = 'none';
+          document.getElementById('emptyState').style.display = 'block';
+          document.getElementById('emptyState').querySelector('p').textContent = data.error || 'Failed to load listings';
+          return;
+        }
+
+        allListings = data.items;
+        currentPage = data.pagination.page;
+        totalPages = data.pagination.totalPages;
+        totalEntries = data.pagination.totalEntries;
+
+        document.getElementById('loadingState').style.display = 'none';
+
+        if (allListings.length === 0) {
+          document.getElementById('emptyState').style.display = 'block';
+          return;
+        }
+
+        document.getElementById('statsText').textContent = `${totalEntries} active listing${totalEntries !== 1 ? 's' : ''}`;
+        renderListings(allListings);
+
+        document.getElementById('listingsTable').style.display = 'table';
+        if (totalPages > 1) {
+          document.getElementById('pagination').style.display = 'flex';
+          document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+          document.getElementById('prevPage').disabled = currentPage <= 1;
+          document.getElementById('nextPage').disabled = currentPage >= totalPages;
+        }
+      } catch (err) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+        showToast('Failed to load listings', 'error');
+      }
+    }
+
+    // ── Render listings table ──
+    function renderListings(listings) {
+      const search = document.getElementById('searchBox').value.toLowerCase();
+      const filtered = search ? listings.filter(l =>
+        l.title.toLowerCase().includes(search) ||
+        (l.sku && l.sku.toLowerCase().includes(search)) ||
+        l.itemId.includes(search)
+      ) : listings;
+
+      const tbody = document.getElementById('listingsBody');
+      tbody.innerHTML = filtered.map(item => `
+        <tr data-id="${item.itemId}">
+          <td><input type="checkbox" class="row-check" data-id="${item.itemId}" onclick="event.stopPropagation()"></td>
+          <td><img class="listing-thumb" src="${item.picture || ''}" alt="" onerror="this.style.display='none'"></td>
+          <td><div class="listing-title" title="${escHtml(item.title)}">${escHtml(item.title)}</div></td>
+          <td><span class="listing-sku">${escHtml(item.sku || '—')}</span></td>
+          <td><span class="listing-price">$${parseFloat(item.price || 0).toFixed(2)}</span></td>
+          <td><span class="listing-qty">${item.quantityAvailable}</span></td>
+          <td>${item.quantitySold || 0}</td>
+          <td><span class="listing-watchers">${item.watchers || 0}</span></td>
+          <td><span class="badge badge-active">${item.listingType === 'Chinese' ? 'Auction' : 'Active'}</span></td>
+          <td>
+            <button class="btn btn-secondary btn-xs end-single-btn" data-id="${item.itemId}" onclick="event.stopPropagation(); openEndModal('${item.itemId}')">End</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Row click → open detail
+      for (const row of tbody.querySelectorAll('tr')) {
+        row.addEventListener('click', () => openDetail(row.dataset.id));
+      }
+
+      // Checkbox handling
+      for (const cb of tbody.querySelectorAll('.row-check')) {
+        cb.addEventListener('change', (e) => {
+          if (e.target.checked) selectedIds.add(e.target.dataset.id);
+          else selectedIds.delete(e.target.dataset.id);
+          updateBulkBar();
+        });
+      }
+    }
+
+    function escHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    }
+
+    // ── Select all ──
+    document.getElementById('selectAll').addEventListener('change', (e) => {
+      const checks = document.querySelectorAll('.row-check');
+      for (const cb of checks) {
+        cb.checked = e.target.checked;
+        if (e.target.checked) selectedIds.add(cb.dataset.id);
+        else selectedIds.delete(cb.dataset.id);
+      }
+      updateBulkBar();
+    });
+
+    // ── Bulk bar ──
+    function updateBulkBar() {
+      const bar = document.getElementById('bulkBar');
+      if (selectedIds.size > 0) {
+        bar.classList.add('active');
+        document.getElementById('bulkCount').textContent = `${selectedIds.size} selected`;
+      } else {
+        bar.classList.remove('active');
+      }
+    }
+
+    document.getElementById('bulkCancelBtn').addEventListener('click', () => {
+      selectedIds.clear();
+      document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+      document.getElementById('selectAll').checked = false;
+      updateBulkBar();
+    });
+
+    document.getElementById('bulkEndBtn').addEventListener('click', async () => {
+      if (!confirm(`End ${selectedIds.size} listing(s)? This cannot be undone.`)) return;
+      const ids = [...selectedIds];
+      let success = 0;
+      for (const id of ids) {
+        try {
+          const resp = await fetch(`/api/my-listings/${id}/end`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: 'NotAvailable' }),
+          });
+          if (resp.ok) success++;
+        } catch (e) { /* continue */ }
+      }
+      showToast(`${success} of ${ids.length} listings ended`);
+      selectedIds.clear();
+      updateBulkBar();
+      loadListings(currentPage);
+    });
+
+    // ── Search ──
+    document.getElementById('searchBox').addEventListener('input', () => renderListings(allListings));
+
+    // ── Pagination ──
+    document.getElementById('prevPage').addEventListener('click', () => loadListings(currentPage - 1));
+    document.getElementById('nextPage').addEventListener('click', () => loadListings(currentPage + 1));
+
+    // ── Refresh ──
+    document.getElementById('refreshBtn').addEventListener('click', () => loadListings(currentPage));
+
+    // ── Open detail modal ──
+    async function openDetail(itemId) {
+      currentItemId = itemId;
+      currentItemData = null;
+      const modal = document.getElementById('detailModal');
+      modal.classList.add('active');
+      document.getElementById('modalLoading').style.display = 'flex';
+      document.getElementById('modalContent').style.display = 'none';
+
+      try {
+        const resp = await fetch(`/api/my-listings/${itemId}`);
+        const data = await resp.json();
+        if (!resp.ok) { showToast(data.error || 'Failed to load details', 'error'); return; }
+        currentItemData = data;
+        populateModal(data);
+        document.getElementById('modalLoading').style.display = 'none';
+        document.getElementById('modalContent').style.display = 'block';
+      } catch (err) {
+        showToast('Failed to load details', 'error');
+        modal.classList.remove('active');
+      }
+    }
+
+    // ── Populate modal ──
+    function populateModal(data) {
+      document.getElementById('modalTitle').textContent = data.title || 'Listing Details';
+
+      // Images
+      const mainImg = document.getElementById('mainImage');
+      mainImg.src = data.pictures[0] || '';
+      const strip = document.getElementById('thumbStrip');
+      strip.innerHTML = data.pictures.map((url, i) =>
+        `<img src="${url}" class="${i === 0 ? 'active' : ''}" onclick="selectThumb(this, '${url}')">`
+      ).join('');
+
+      // Fields
+      document.getElementById('editTitle').value = data.title || '';
+      document.getElementById('editPrice').value = data.price || '';
+      document.getElementById('editQuantity').value = data.quantityAvailable || 1;
+      document.getElementById('editSku').value = data.sku || '';
+      document.getElementById('editUpc').value = data.upc || '';
+      document.getElementById('editCondition').value = data.conditionId || '3000';
+      document.getElementById('editCategory').value = data.categoryName ? `${data.categoryName} (${data.categoryId})` : data.categoryId;
+      document.getElementById('editBestOffer').checked = data.bestOfferEnabled;
+      document.getElementById('editAutoAccept').value = data.autoAcceptPrice || '';
+      document.getElementById('editMinOffer').value = data.minBestOfferPrice || '';
+      document.getElementById('editDescription').value = data.description || '';
+      document.getElementById('viewOnEbay').href = data.listingUrl || '#';
+
+      // Specs
+      renderSpecs(data.specifics || {});
+
+      // Reset tabs
+      document.querySelector('.tab.active').click();
+    }
+
+    function selectThumb(el, url) {
+      document.getElementById('mainImage').src = url;
+      document.querySelectorAll('.detail-thumbs img').forEach(i => i.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    // ── Specs ──
+    function renderSpecs(specifics) {
+      const tbody = document.getElementById('specsBody');
+      tbody.innerHTML = Object.entries(specifics).map(([name, value]) => `
+        <tr>
+          <td>${escHtml(name)}</td>
+          <td><input type="text" value="${escHtml(value)}" data-spec="${escHtml(name)}"></td>
+          <td><button class="spec-remove" onclick="this.closest('tr').remove()">&times;</button></td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('addSpecBtn').addEventListener('click', () => {
+      const name = document.getElementById('newSpecName').value.trim();
+      const value = document.getElementById('newSpecValue').value.trim();
+      if (!name) return;
+      const tbody = document.getElementById('specsBody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escHtml(name)}</td>
+        <td><input type="text" value="${escHtml(value)}" data-spec="${escHtml(name)}"></td>
+        <td><button class="spec-remove" onclick="this.closest('tr').remove()">&times;</button></td>
+      `;
+      tbody.appendChild(tr);
+      document.getElementById('newSpecName').value = '';
+      document.getElementById('newSpecValue').value = '';
+    });
+
+    // ── Tabs ──
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1)).classList.add('active');
+      });
+    });
+
+    // ── Preview description ──
+    document.getElementById('previewDescBtn').addEventListener('click', () => {
+      const preview = document.getElementById('descPreview');
+      const desc = document.getElementById('editDescription').value;
+      if (preview.style.display === 'none') {
+        preview.innerHTML = desc;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+    });
+
+    // ── Save changes ──
+    document.getElementById('saveListingBtn').addEventListener('click', async () => {
+      if (!currentItemId) return;
+      const btn = document.getElementById('saveListingBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      // Collect specs
+      const specifics = {};
+      document.querySelectorAll('#specsBody tr').forEach(tr => {
+        const input = tr.querySelector('input[data-spec]');
+        if (input) specifics[input.dataset.spec] = input.value;
+      });
+
+      const body = {
+        title: document.getElementById('editTitle').value,
+        price: document.getElementById('editPrice').value,
+        quantity: parseInt(document.getElementById('editQuantity').value) || 1,
+        conditionId: document.getElementById('editCondition').value,
+        sku: document.getElementById('editSku').value,
+        upc: document.getElementById('editUpc').value,
+        description: document.getElementById('editDescription').value,
+        bestOfferEnabled: document.getElementById('editBestOffer').checked,
+        autoAcceptPrice: document.getElementById('editAutoAccept').value,
+        minBestOfferPrice: document.getElementById('editMinOffer').value,
+        specifics,
+      };
+
+      try {
+        const resp = await fetch(`/api/my-listings/${currentItemId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          showToast('Listing updated successfully!');
+          document.getElementById('detailModal').classList.remove('active');
+          loadListings(currentPage);
+        } else {
+          showToast(data.error || 'Failed to update', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to update listing', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+    });
+
+    // ── End listing ──
+    let endTargetId = null;
+
+    function openEndModal(itemId) {
+      endTargetId = itemId;
+      document.getElementById('endModal').classList.add('active');
+    }
+
+    document.getElementById('endListingBtn').addEventListener('click', () => {
+      if (currentItemId) openEndModal(currentItemId);
+    });
+
+    document.getElementById('endConfirmBtn').addEventListener('click', async () => {
+      if (!endTargetId) return;
+      const btn = document.getElementById('endConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = 'Ending...';
+
+      try {
+        const resp = await fetch(`/api/my-listings/${endTargetId}/end`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: document.getElementById('endReason').value }),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          showToast('Listing ended successfully!');
+          document.getElementById('endModal').classList.remove('active');
+          document.getElementById('detailModal').classList.remove('active');
+          loadListings(currentPage);
+        } else {
+          showToast(data.error || 'Failed to end listing', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to end listing', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'End Listing';
+      }
+    });
+
+    // ── Modal close handlers ──
+    document.getElementById('modalClose').addEventListener('click', () => {
+      document.getElementById('detailModal').classList.remove('active');
+    });
+    document.getElementById('cancelEditBtn').addEventListener('click', () => {
+      document.getElementById('detailModal').classList.remove('active');
+    });
+    document.getElementById('endModalClose').addEventListener('click', () => {
+      document.getElementById('endModal').classList.remove('active');
+    });
+    document.getElementById('endCancelBtn').addEventListener('click', () => {
+      document.getElementById('endModal').classList.remove('active');
+    });
+
+    // Close modals on overlay click
+    document.getElementById('detailModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+    });
+    document.getElementById('endModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('active');
+    });
+
+    // ── Logout ──
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+
+    // ── Best offer toggle ──
+    document.getElementById('editBestOffer').addEventListener('change', (e) => {
+      document.getElementById('bestOfferFields').style.display = e.target.checked ? 'grid' : 'none';
+    });
+
+    // ── Init ──
+    (async () => {
+      const user = await checkAuth();
+      if (!user) return;
+      loadListings(1);
+    })();
+  </script>
+</body>
+</html>

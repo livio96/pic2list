@@ -835,12 +835,15 @@ app.post('/api/claude/chat', async (req, res) => {
 app.post('/api/generate-images', async (req, res) => {
   if (!OPENROUTER_API_KEY) return res.status(400).json({ success: false, error: 'OpenRouter API key not configured' });
 
-  const { imageBase64, images, title, description } = req.body;
+  const { imageBase64, images, title, description, marketingText } = req.body;
   if (!title && !description) return res.status(400).json({ success: false, error: 'Title or description required' });
 
   try {
     const descText = description
       ? description.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 2000)
+      : '';
+    const mktText = marketingText
+      ? marketingText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 4000)
       : '';
 
     const content = [];
@@ -851,9 +854,9 @@ app.post('/api/generate-images', async (req, res) => {
     }
     content.push({
       type: 'text',
-      text: `You are an expert product analyst. Analyze this product listing and return structured data for professional eBay infographic images. Use your knowledge of this product model/brand to add specific details beyond what's visible.
+      text: `You are an expert product analyst and marketing copywriter. Analyze this product listing and return structured data for professional eBay infographic images. Use your knowledge of this product model/brand to add specific details beyond what's visible.
 
-Product: "${title}"${descText ? `\n\nDescription:\n${descText}` : ''}
+Product: "${title}"${descText ? `\n\nDescription:\n${descText}` : ''}${mktText ? `\n\nAdditional Marketing/Spec Data:\n${mktText}` : ''}
 
 Return ONLY valid JSON in exactly this format:
 {
@@ -941,6 +944,127 @@ Rules for conditionBadges (exactly 4):
     res.json({ success: true, features, featureGroups, accentColor, conditionBadges, headline });
   } catch (err) {
     console.error('Generate images error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── AI Image Generation via OpenRouter ──
+const IMAGE_GEN_MODEL = process.env.IMAGE_GEN_MODEL || 'openai/gpt-5-image-mini';
+
+app.post('/api/generate-ai-image', async (req, res) => {
+  if (!OPENROUTER_API_KEY) return res.status(400).json({ success: false, error: 'OpenRouter API key not configured' });
+
+  const { prompt, productImageBase64 } = req.body;
+  if (!prompt) return res.status(400).json({ success: false, error: 'Prompt required' });
+
+  try {
+    const content = [];
+    if (productImageBase64) {
+      content.push({ type: 'image_url', image_url: { url: `data:image/jpeg;base64,${productImageBase64}` } });
+    }
+    content.push({ type: 'text', text: prompt });
+
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: IMAGE_GEN_MODEL,
+        messages: [{ role: 'user', content }],
+        modalities: ['image', 'text'],
+        max_tokens: 4096,
+      }),
+    });
+
+    const data = await resp.json();
+    console.log('[AI Image Gen] Model:', IMAGE_GEN_MODEL, 'Status:', resp.status);
+    if (!resp.ok) {
+      console.error('[AI Image Gen] Error response:', JSON.stringify(data).substring(0, 500));
+      throw new Error(data.error?.message || `Image gen API error ${resp.status}`);
+    }
+
+    // Extract image from response
+    const msg = data.choices?.[0]?.message;
+    console.log('[AI Image Gen] Message keys:', msg ? Object.keys(msg) : 'no message');
+    console.log('[AI Image Gen] Content type:', typeof msg?.content, Array.isArray(msg?.content) ? `array(${msg.content.length})` : '');
+    if (Array.isArray(msg?.content)) {
+      console.log('[AI Image Gen] Content part types:', msg.content.map(p => p.type));
+    }
+
+    let imageDataUrl = null;
+
+    // Check for images array in response (OpenRouter format)
+    if (msg?.images && msg.images.length > 0) {
+      let rawImg = msg.images[0];
+      console.log('[AI Image Gen] Image type:', typeof rawImg, rawImg && typeof rawImg === 'object' ? JSON.stringify(Object.keys(rawImg)) : '');
+      if (typeof rawImg === 'string') {
+        if (rawImg.startsWith('data:image')) {
+          imageDataUrl = rawImg;
+        } else {
+          imageDataUrl = `data:image/png;base64,${rawImg}`;
+        }
+      } else if (rawImg && typeof rawImg === 'object') {
+        // Format 1: { type: "image_url", image_url: { url: "data:..." } }
+        if (rawImg.type === 'image_url' && rawImg.image_url?.url) {
+          imageDataUrl = rawImg.image_url.url;
+          if (!imageDataUrl.startsWith('data:')) {
+            // It's a hosted URL — fetch it
+            try {
+              const imgResp2 = await fetch(imageDataUrl);
+              const buf = await imgResp2.arrayBuffer();
+              const b64str = Buffer.from(buf).toString('base64');
+              const ct = imgResp2.headers.get('content-type') || 'image/png';
+              imageDataUrl = `data:${ct};base64,${b64str}`;
+            } catch (e) { console.error('[AI Image Gen] Fetch URL failed:', e.message); imageDataUrl = null; }
+          }
+        }
+        // Format 2: { b64_json, url, revised_prompt }
+        if (!imageDataUrl) {
+          const b64 = rawImg.b64_json || rawImg.data || rawImg.base64 || null;
+          const url = rawImg.url || null;
+          if (b64) {
+            imageDataUrl = `data:${rawImg.content_type || 'image/png'};base64,${b64}`;
+          } else if (url) {
+            try {
+              const imgResp2 = await fetch(url);
+              const buf = await imgResp2.arrayBuffer();
+              const b64str = Buffer.from(buf).toString('base64');
+              imageDataUrl = `data:${imgResp2.headers.get('content-type') || 'image/png'};base64,${b64str}`;
+            } catch (e) { console.error('[AI Image Gen] Fetch URL failed:', e.message); }
+          }
+        }
+        console.log('[AI Image Gen] Parsed object, got image:', !!imageDataUrl, imageDataUrl ? `${imageDataUrl.substring(0, 50)}... (${imageDataUrl.length} chars)` : 'null');
+      }
+    }
+    // Content array with image_url parts
+    if (!imageDataUrl && Array.isArray(msg?.content)) {
+      for (const part of msg.content) {
+        if (part.type === 'image_url') {
+          imageDataUrl = part.image_url?.url || null;
+          if (imageDataUrl) { console.log('[AI Image Gen] Found image in content[].image_url'); break; }
+        }
+        // Also check for inline_data (Gemini format)
+        if (part.type === 'image' && part.image_url?.url) {
+          imageDataUrl = part.image_url.url;
+          console.log('[AI Image Gen] Found image in content[].image (image type)'); break;
+        }
+      }
+    }
+    // Base64 directly in content string
+    if (!imageDataUrl && typeof msg?.content === 'string' && msg.content.startsWith('data:image')) {
+      imageDataUrl = msg.content;
+      console.log('[AI Image Gen] Found image as content string');
+    }
+
+    if (!imageDataUrl) {
+      throw new Error('No image returned from model. Response: ' + JSON.stringify(msg).substring(0, 500));
+    }
+
+    res.json({ success: true, imageDataUrl });
+  } catch (err) {
+    console.error('AI image gen error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

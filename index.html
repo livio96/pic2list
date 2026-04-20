@@ -903,6 +903,14 @@
       font-size: 12px; color: #8b8fa3;
     }
 
+    .gen-img-marketing-text {
+      width: 100%; margin-top: 8px; padding: 8px 10px; border: 1px solid #c4b5fd;
+      border-radius: 8px; font-size: 12px; font-family: inherit; resize: vertical;
+      background: #fff; color: #1a1a2e; min-height: 48px; max-height: 160px;
+    }
+    .gen-img-marketing-text::placeholder { color: #a5a8b8; }
+    .gen-img-marketing-text:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139,92,246,0.15); }
+
     .btn-img-gen {
       background: linear-gradient(135deg, #a855f7, #6366f1);
       color: #fff;
@@ -938,7 +946,16 @@
       background: #fff; border-bottom: 1px solid #e5e7eb;
     }
     .gen-img-canvas { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; }
-    .gen-img-card-loading .gen-img-label { color: #8b8fa3 !important; }
+    .gen-img-card-loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 200px; aspect-ratio: 1; background: #f8f9fb; color: #8b8fa3;
+      font-size: 13px; gap: 8px;
+    }
+    .gen-img-card-error {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 200px; aspect-ratio: 1; background: #fef2f2; color: #dc2626;
+      font-size: 12px; padding: 16px; text-align: center;
+    }
     .gen-img-placeholder {
       display: flex; align-items: center; justify-content: center;
       min-height: 200px; background: #f4f6f9; aspect-ratio: 1;
@@ -3090,9 +3107,10 @@ HTML:
 
       const genImagesHtml = (meta.generatedTitle || meta.generatedHtml) ? `
         <div class="modal-gen-images-section">
-          <div>
+          <div style="flex:1">
             <div class="modal-gen-images-label">✨ Generate Infographic Images</div>
             <div class="modal-gen-images-desc">Create professional product feature images powered by AI — add them directly to this listing</div>
+            <textarea id="modalGenImgText" class="gen-img-marketing-text" placeholder="Paste marketing text, Amazon description, spec sheet, or any product details here for richer images (optional)..." rows="3"></textarea>
           </div>
           <button class="btn btn-img-gen btn-sm" id="modalGenImgBtn">Generate Images</button>
         </div>
@@ -4124,41 +4142,29 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
         meta._genImgCache.forEach(cached => {
           const wrapper = document.createElement('div');
           wrapper.className = 'gen-img-card';
-
           const label = document.createElement('div');
           label.className = 'gen-img-label';
           label.textContent = cached.label;
-
           const canvasWrap = document.createElement('div');
           canvasWrap.className = 'gen-img-canvas-wrap';
-          const zoomHint = document.createElement('div');
-          zoomHint.className = 'gen-img-zoom-hint';
-          zoomHint.textContent = '🔍';
-
           const img = document.createElement('img');
           img.className = 'gen-img-canvas';
           img.src = cached.dataUrl;
-
           canvasWrap.appendChild(img);
+          const zoomHint = document.createElement('div');
+          zoomHint.className = 'gen-img-zoom-hint';
+          zoomHint.textContent = '🔍';
           canvasWrap.appendChild(zoomHint);
           canvasWrap.addEventListener('click', () => {
             document.getElementById('infLightboxImg').src = cached.dataUrl;
             document.getElementById('infLightbox').classList.add('open');
           });
-
           const btnRow = document.createElement('div');
           btnRow.className = 'gen-img-btn-row';
-
           const dlBtn = document.createElement('button');
           dlBtn.className = 'btn btn-secondary btn-sm';
           dlBtn.textContent = 'Download';
-          dlBtn.addEventListener('click', () => {
-            const a = document.createElement('a');
-            a.href = cached.dataUrl;
-            a.download = cached.filename;
-            a.click();
-          });
-
+          dlBtn.addEventListener('click', () => { const a = document.createElement('a'); a.href = cached.dataUrl; a.download = cached.filename; a.click(); });
           const addBtn = document.createElement('button');
           addBtn.className = 'btn btn-primary btn-sm';
           addBtn.textContent = cached.added ? '✓ Added' : '+ Add to Listing';
@@ -4175,152 +4181,126 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
             addBtn.disabled = true;
             addBtn.style.background = '#22c55e';
           });
-
-          btnRow.appendChild(dlBtn);
-          btnRow.appendChild(addBtn);
-          wrapper.appendChild(label);
-          wrapper.appendChild(canvasWrap);
-          wrapper.appendChild(btnRow);
+          btnRow.appendChild(dlBtn); btnRow.appendChild(addBtn);
+          wrapper.appendChild(label); wrapper.appendChild(canvasWrap); wrapper.appendChild(btnRow);
           container.appendChild(wrapper);
         });
         overlay.classList.add('open');
         return;
       }
 
-      // Fresh generation
+      // Fresh generation — AI image generation
       if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Analyzing...'; }
       container.innerHTML = `<div class="gen-img-loading" style="grid-column:1/-1"><span class="spinner"></span> Analyzing product features...</div>`;
       overlay.classList.add('open');
 
       try {
-        // Send ALL images from the cluster
-        const allImages = meta.cluster
-          .map(item => item.img?.base64)
-          .filter(Boolean);
+        const allImages = meta.cluster.map(item => item.img?.base64).filter(Boolean);
         const title = meta.generatedTitle || meta.productName;
         const desc = meta.generatedHtml || '';
+        const marketingText = (document.getElementById('modalGenImgText')?.value || '').trim();
+        const productBase64 = allImages[0] || null;
 
+        // Step 1: Extract features
         const resp = await apiFetch('/api/generate-images', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: allImages, title, description: desc }),
+          body: JSON.stringify({ images: allImages, title, description: desc, marketingText }),
         });
         const data = await resp.json();
         if (!data.success) throw new Error(data.error || 'Feature extraction failed');
-
         const { features, featureGroups, accentColor, conditionBadges, headline } = data;
 
-        // Build image pool: start with all uploaded photos, then supplement from web
-        const clusterDataUrls = meta.cluster.map(item => item.img?.dataUrl).filter(Boolean);
-        let imagePool = clusterDataUrls.length > 0 ? clusterDataUrls : [meta.cluster[0]?.img?.dataUrl || null];
-
-        if (imagePool.length < 4) {
-          container.innerHTML = `<div class="gen-img-loading" style="grid-column:1/-1"><span class="spinner"></span> Finding product images...</div>`;
-          try {
-            const imgResp = await apiFetch('/api/find-product-images', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageBase64: meta.cluster[0]?.img?.base64 || null }),
-            });
-            const imgData = await imgResp.json();
-            if (imgData.success && imgData.images?.length) {
-              imagePool = [...imagePool, ...imgData.images];
-            }
-          } catch { /* use uploaded images only */ }
-        }
+        // Step 2: Build AI image prompts
+        const groups = (featureGroups?.length >= 3) ? featureGroups.map(g => g.features) : [features, features, features];
+        const templates = _buildImagePrompts(title, headline || title, groups, features, accentColor, conditionBadges, marketingText);
 
         container.innerHTML = '';
         meta._genImgCache = [];
 
-        const groups = (featureGroups?.length >= 3)
-          ? featureGroups.map(g => g.features)
-          : [features, features, features];
-        const mkTpl = (fn, grpIdx) => (c, img, t, _f, ac) =>
-          fn(c, img, t, groups[grpIdx % groups.length], ac, headline || '', conditionBadges);
-
-        const templates = [
-          { id: 'cleanshot',         label: 'Clean Product Shot',    fn: mkTpl(infCleanShot, 0) },
-          { id: 'valueprop',         label: 'Value Proposition',     fn: mkTpl(infValueProp, 1) },
-          { id: 'featurecallout',    label: 'Feature Highlight',     fn: mkTpl(infFeatureCallout, 0) },
-          { id: 'specslist',         label: 'Key Specifications',    fn: mkTpl(infSpecsList, 0) },
-          { id: 'comparison',        label: 'Comparison Table',      fn: mkTpl(infComparison, 0) },
-          { id: 'whatsincluded',     label: "What's Included",       fn: mkTpl(infWhatsIncluded, 2) },
-          { id: 'splitfeatures',     label: 'Split Features',        fn: mkTpl(infSplitFeatures, 1) },
-          { id: 'conditionshowcase', label: 'Condition Showcase',    fn: mkTpl(infConditionShowcase, 2) },
-          { id: 'bulletpoints',      label: 'Bullet Points',         fn: mkTpl(infBulletPoints, 2) },
-        ];
-
+        // Step 3: Build cards, then generate images sequentially (2 at a time)
+        const cardElements = [];
         for (const tpl of templates) {
           const wrapper = document.createElement('div');
           wrapper.className = 'gen-img-card';
-
-          const label = document.createElement('div');
-          label.className = 'gen-img-label';
-          label.textContent = tpl.label;
-
+          const labelEl = document.createElement('div');
+          labelEl.className = 'gen-img-label';
+          labelEl.textContent = tpl.label;
           const canvasWrap = document.createElement('div');
           canvasWrap.className = 'gen-img-canvas-wrap';
-          const zoomHint = document.createElement('div');
-          zoomHint.className = 'gen-img-zoom-hint';
-          zoomHint.textContent = '🔍';
-          canvasWrap.addEventListener('click', () => {
-            document.getElementById('infLightboxImg').src = canvas.toDataURL('image/png');
-            document.getElementById('infLightbox').classList.add('open');
-          });
-
-          const canvas = document.createElement('canvas');
-          canvas.className = 'gen-img-canvas';
-          canvasWrap.appendChild(canvas);
-          canvasWrap.appendChild(zoomHint);
-
+          const loadingDiv = document.createElement('div');
+          loadingDiv.className = 'gen-img-card-loading';
+          loadingDiv.innerHTML = '<span class="spinner"></span> Generating...';
+          canvasWrap.appendChild(loadingDiv);
           const btnRow = document.createElement('div');
           btnRow.className = 'gen-img-btn-row';
-
-          const filename = `${title.substring(0, 30).replace(/[^a-z0-9]/gi, '-')}-${tpl.id}.png`;
-
-          const dlBtn = document.createElement('button');
-          dlBtn.className = 'btn btn-secondary btn-sm';
-          dlBtn.textContent = 'Download';
-          dlBtn.addEventListener('click', () => {
-            const a = document.createElement('a');
-            a.href = canvas.toDataURL('image/png');
-            a.download = filename;
-            a.click();
-          });
-
-          const cacheEntry = { label: tpl.label, dataUrl: null, filename, added: false };
-
-          const addBtn = document.createElement('button');
-          addBtn.className = 'btn btn-primary btn-sm';
-          addBtn.textContent = '+ Add to Listing';
-          addBtn.addEventListener('click', () => {
-            const dataUrl = canvas.toDataURL('image/png');
-            const base64 = dataUrl.split(',')[1];
-            const blob = dataUrlToBlob(dataUrl);
-            const file = new File([blob], filename, { type: 'image/png' });
-            meta.cluster.push({ index: imageFiles.length, img: { file, dataUrl, base64 }, response: {} });
-            imageFiles.push({ file, dataUrl, base64 });
-            updateRow(ci);
-            cacheEntry.added = true;
-            addBtn.textContent = '✓ Added';
-            addBtn.disabled = true;
-            addBtn.style.background = '#22c55e';
-          });
-
-          btnRow.appendChild(dlBtn);
-          btnRow.appendChild(addBtn);
-          wrapper.appendChild(label);
-          wrapper.appendChild(canvasWrap);
-          wrapper.appendChild(btnRow);
+          wrapper.appendChild(labelEl); wrapper.appendChild(canvasWrap); wrapper.appendChild(btnRow);
           container.appendChild(wrapper);
 
-          const tplImg = imagePool[templates.indexOf(tpl) % imagePool.length];
-          await tpl.fn(canvas, tplImg, title, features, accentColor);
-
-          // Cache the rendered image
-          cacheEntry.dataUrl = canvas.toDataURL('image/png');
+          const filename = `${title.substring(0, 30).replace(/[^a-z0-9]/gi, '-')}-${tpl.id}.png`;
+          const cacheEntry = { label: tpl.label, dataUrl: null, filename, added: false };
           meta._genImgCache.push(cacheEntry);
+          cardElements.push({ tpl, canvasWrap, btnRow, filename, cacheEntry });
         }
+
+        // Generate 2 at a time to avoid rate limits
+        const CONCURRENCY = 2;
+        let idx = 0;
+        async function genNext() {
+          const i = idx++;
+          if (i >= cardElements.length) return;
+          const { tpl, canvasWrap, btnRow, filename, cacheEntry } = cardElements[i];
+          try {
+            const imgResp = await apiFetch('/api/generate-ai-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: tpl.prompt, productImageBase64: productBase64 }),
+            });
+            const imgData = await imgResp.json();
+            if (!imgData.success) throw new Error(imgData.error || 'Failed');
+
+            cacheEntry.dataUrl = imgData.imageDataUrl;
+            canvasWrap.innerHTML = '';
+            const img = document.createElement('img');
+            img.className = 'gen-img-canvas';
+            img.src = imgData.imageDataUrl;
+            canvasWrap.appendChild(img);
+            const zh = document.createElement('div');
+            zh.className = 'gen-img-zoom-hint';
+            zh.textContent = '🔍';
+            canvasWrap.appendChild(zh);
+            canvasWrap.addEventListener('click', () => {
+              document.getElementById('infLightboxImg').src = imgData.imageDataUrl;
+              document.getElementById('infLightbox').classList.add('open');
+            });
+
+            const dlBtn = document.createElement('button');
+            dlBtn.className = 'btn btn-secondary btn-sm';
+            dlBtn.textContent = 'Download';
+            dlBtn.addEventListener('click', () => { const a = document.createElement('a'); a.href = imgData.imageDataUrl; a.download = filename; a.click(); });
+            const addBtn = document.createElement('button');
+            addBtn.className = 'btn btn-primary btn-sm';
+            addBtn.textContent = '+ Add to Listing';
+            addBtn.addEventListener('click', () => {
+              const base64 = imgData.imageDataUrl.split(',')[1];
+              const blob = dataUrlToBlob(imgData.imageDataUrl);
+              const file = new File([blob], filename, { type: 'image/png' });
+              meta.cluster.push({ index: imageFiles.length, img: { file, dataUrl: imgData.imageDataUrl, base64 }, response: {} });
+              imageFiles.push({ file, dataUrl: imgData.imageDataUrl, base64 });
+              updateRow(ci);
+              cacheEntry.added = true;
+              addBtn.textContent = '✓ Added';
+              addBtn.disabled = true;
+              addBtn.style.background = '#22c55e';
+            });
+            btnRow.appendChild(dlBtn); btnRow.appendChild(addBtn);
+          } catch (err) {
+            canvasWrap.innerHTML = `<div class="gen-img-card-error">Failed: ${err.message}</div>`;
+          }
+          await genNext(); // process next in queue
+        }
+        // Start CONCURRENCY workers
+        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, cardElements.length) }, () => genNext()));
       } catch (err) {
         container.innerHTML = `<div class="gen-img-error" style="grid-column:1/-1">Error: ${escapeHtml(err.message)}</div>`;
       }

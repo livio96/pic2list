@@ -52,7 +52,7 @@ async function generateImagesOverlay(opts) {
     const data = await resp.json();
     if (!data.success) throw new Error(data.error || 'Feature extraction failed');
 
-    const { features, featureGroups, accentColor, conditionBadges } = data;
+    const { features, featureGroups, accentColor, conditionBadges, headline } = data;
 
     // Build image pool from URLs (as data URLs for canvas)
     let imagePool = [];
@@ -91,20 +91,19 @@ async function generateImagesOverlay(opts) {
     const groups = (featureGroups?.length >= 3)
       ? featureGroups.map(g => g.features)
       : [features, features, features];
-    const emptyTagline = { line1: '', line2: '' };
     const mkTpl = (fn, grpIdx) => (c, img, t, _f, ac) =>
-      fn(c, img, t, groups[grpIdx % groups.length], ac, emptyTagline, conditionBadges);
+      fn(c, img, t, groups[grpIdx % groups.length], ac, headline || '', conditionBadges);
 
     const templates = [
-      { id: 'callout',           label: 'Callout Diagram',    fn: mkTpl(infCalloutDiagram, 0) },
-      { id: 'featgrid',          label: 'Feature Grid',       fn: mkTpl(infFeatureGrid, 0) },
-      { id: 'darkspecs',         label: 'Dark Specs',         fn: mkTpl(infDarkSpecs, 0) },
-      { id: 'herobanner',        label: 'Hero Banner',        fn: mkTpl(infHeroBanner, 1) },
-      { id: 'spotlight',         label: 'Spotlight',          fn: mkTpl(infSpotlight, 1) },
-      { id: 'splitpanel',        label: 'Split Panel',        fn: mkTpl(infSplitPanel, 1) },
-      { id: 'conditionshowcase', label: 'Condition Showcase',  fn: mkTpl(infConditionShowcase, 2) },
-      { id: 'minimal',           label: 'Minimal',            fn: mkTpl(infMinimal, 2) },
-      { id: 'socialcard',        label: 'Social Card',        fn: mkTpl(infSocialCard, 2) },
+      { id: 'cleanshot',         label: 'Clean Product Shot',      fn: mkTpl(infCleanShot, 0) },
+      { id: 'valueprop',         label: 'Value Proposition',       fn: mkTpl(infValueProp, 1) },
+      { id: 'featurecallout',    label: 'Feature Highlight',       fn: mkTpl(infFeatureCallout, 0) },
+      { id: 'specslist',         label: 'Key Specifications',      fn: mkTpl(infSpecsList, 0) },
+      { id: 'comparison',        label: 'Comparison Table',        fn: mkTpl(infComparison, 0) },
+      { id: 'whatsincluded',     label: "What's Included",         fn: mkTpl(infWhatsIncluded, 2) },
+      { id: 'splitfeatures',     label: 'Split Features',          fn: mkTpl(infSplitFeatures, 1) },
+      { id: 'conditionshowcase', label: 'Condition Showcase',      fn: mkTpl(infConditionShowcase, 2) },
+      { id: 'bulletpoints',      label: 'Bullet Points',           fn: mkTpl(infBulletPoints, 2) },
     ];
 
     for (const tpl of templates) {
@@ -180,621 +179,491 @@ async function generateImagesOverlay(opts) {
   if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = 'Generate Images'; }
 }
 
-// ── Canvas templates ────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
+const S = 2400; // Square canvas size — high-res for eBay
+const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+const DARK = '#1a2332';
+const MUTED = '#5a6577';
 
-async function infCalloutDiagram(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-  const BOX_W = 192, BOX_H = 78;
+// ── Template 1: Clean Product Shot ────────────────────────────────────────
+async function infCleanShot(canvas, productDataUrl, title) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 100, 100, S - 200, S - 200);
+  }
+}
 
-  // Background
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
+// ── Template 2: Value Proposition ─────────────────────────────────────────
+async function infValueProp(canvas, productDataUrl, title, features, accentColor, headline) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  ctx.fillStyle = '#f5f5f7'; ctx.fillRect(0, 0, S, S);
 
-  // Tagline
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 16, ac, FONT);
+  const headText = headline || title;
+  ctx.fillStyle = DARK; ctx.font = `800 110px ${FONT}`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const headLines = _wrapText(ctx, headText, S - 240);
+  let hy = 90;
+  for (const line of headLines.slice(0, 3)) {
+    ctx.fillText(line, 120, hy);
+    hy += 130;
+  }
 
-  // Product image — centered, large
-  const prodX = 220, prodY = tagY + 16, prodW = 760, prodH = H - tagY - 36;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, prodX, prodY, prodW, prodH, ac);
-  else infPlaceholderDark(ctx, prodX, prodY, prodW, prodH);
+  // Product image
+  const prodTop = hy + 30, prodH = S - hy - 460;
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 180, prodTop, S - 360, prodH);
+  }
 
-  // 6 fixed box positions
-  const positions = {
-    'top-left':     { bx: 14,              by: prodY + 10 },
-    'top-right':    { bx: W - BOX_W - 14,  by: prodY + 10 },
-    'left':         { bx: 14,              by: prodY + prodH/2 - BOX_H/2 },
-    'right':        { bx: W - BOX_W - 14,  by: prodY + prodH/2 - BOX_H/2 },
-    'bottom-left':  { bx: 14,              by: prodY + prodH - BOX_H - 10 },
-    'bottom-right': { bx: W - BOX_W - 14,  by: prodY + prodH - BOX_H - 10 },
-  };
-  const defaultOrder = ['top-left','top-right','bottom-left','bottom-right','left','right'];
-  const used = new Set();
-
-  const maxF = Math.min(features.length, 6);
-  for (let i = 0; i < maxF; i++) {
+  // Bullet points at bottom
+  const bulletY = S - 380;
+  const maxBullets = Math.min(features.length, 3);
+  for (let i = 0; i < maxBullets; i++) {
     const f = features[i];
-    const posKey = (f.position && positions[f.position] && !used.has(f.position))
-      ? f.position
-      : defaultOrder.find(k => !used.has(k)) || defaultOrder[i % 6];
-    used.add(posKey);
-    const { bx, by } = positions[posKey];
+    const by = bulletY + i * 100;
+    ctx.fillStyle = MUTED; ctx.font = `400 52px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const text = f.detail || f.name || '';
+    ctx.fillText(`-  ${text}`, 120, by);
+  }
+}
 
-    const isLeft = bx < W / 2;
-    const connBoxX  = isLeft ? bx + BOX_W : bx;
-    const connProdX = prodX + Math.max(0.05, Math.min(0.95, f.hx ?? (isLeft ? 0.15 : 0.85))) * prodW;
-    const connProdY = prodY + Math.max(0.05, Math.min(0.95, f.hy ?? 0.5)) * prodH;
-    const boxMidY   = by + BOX_H / 2;
+// ── Template 3: Feature Callout / Highlight ──────────────────────────────
+// Uses AI hx/hy to place labels pointing at actual product features
+async function infFeatureCallout(canvas, productDataUrl, title, features, accentColor, headline) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  const ac = infValidHex(accentColor);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
 
-    // Right-angle elbow connector line
-    ctx.strokeStyle = 'rgba(0,0,0,0.30)'; ctx.lineWidth = 1.5;
-    ctx.setLineDash([]);
+  // Headline
+  const headText = headline || title;
+  ctx.fillStyle = DARK; ctx.font = `700 84px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const headLines = _wrapText(ctx, headText, S - 300);
+  let hy = 70;
+  for (const line of headLines.slice(0, 2)) {
+    ctx.fillText(line, S / 2, hy);
+    hy += 100;
+  }
+
+  // Product area
+  const prodX = 240, prodY = hy + 20, prodW = S - 480, prodH = S - hy - 220;
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, prodX, prodY, prodW, prodH);
+  }
+
+  // Use hx/hy from AI to place labels — max 2 clear annotations
+  const annotations = features.slice(0, 2);
+  const labelColors = [ac, '#22c55e'];
+
+  for (let i = 0; i < annotations.length; i++) {
+    const f = annotations[i];
+    const bc = labelColors[i];
+    // Product hotspot from AI
+    const hx = Math.max(0.1, Math.min(0.9, f.hx ?? 0.5));
+    const hy2 = Math.max(0.1, Math.min(0.9, f.hy ?? 0.5));
+    const dotX = prodX + hx * prodW;
+    const dotY = prodY + hy2 * prodH;
+
+    // Label position — left side or right side based on hx
+    const isLeft = hx < 0.5;
+    const labelX = isLeft ? 80 : S - 80;
+    const labelAlign = isLeft ? 'left' : 'right';
+    const labelY = prodY + 80 + i * (prodH * 0.5);
+
+    // Line from label to hotspot
+    ctx.strokeStyle = bc; ctx.lineWidth = 3; ctx.setLineDash([]);
     ctx.beginPath();
-    ctx.moveTo(connBoxX, boxMidY);
-    const midX = connBoxX + (connProdX - connBoxX) * 0.55;
-    ctx.lineTo(midX, boxMidY);      // horizontal from box
-    ctx.lineTo(midX, connProdY);    // vertical elbow
-    ctx.lineTo(connProdX, connProdY); // horizontal to hotspot
+    ctx.moveTo(isLeft ? labelX + 20 : labelX - 20, labelY + 30);
+    ctx.lineTo(dotX, dotY);
     ctx.stroke();
 
-    // Accent dot at product hotspot
-    ctx.fillStyle = ac;
-    ctx.beginPath(); ctx.arc(connProdX, connProdY, 5, 0, Math.PI * 2); ctx.fill();
-
-    // Feature box
-    infRoundRect(ctx, bx, by, BOX_W, BOX_H, 10);
-    ctx.fillStyle = infHexToRgba(ac, 0.88); ctx.fill();
-    ctx.strokeStyle = infLightenHex(ac, 0.25); ctx.lineWidth = 1; ctx.stroke();
-
-    ctx.font = `bold 16px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Dot on product
+    ctx.fillStyle = bc;
+    ctx.beginPath(); ctx.arc(dotX, dotY, 10, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.fillText(`${f.icon || ''} ${infTrunc(f.name || '', 18)}`, bx + BOX_W/2, by + BOX_H/2 - 10);
-    ctx.font = `12px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.fillText(infTrunc(f.detail || '', 24), bx + BOX_W/2, by + BOX_H/2 + 12);
-  }
+    ctx.beginPath(); ctx.arc(dotX, dotY, 5, 0, Math.PI * 2); ctx.fill();
 
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W - 16, H - 10);
-}
-
-// ── Template 4: Spotlight ────────────────────────────────────────────────
-async function infSpotlight(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
-
-  // Tagline top
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 16, ac, FONT);
-
-  // Product left (large)
-  const prodX = 20, prodY = tagY + 10, prodW = 530, prodH = H - tagY - 20;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, prodX, prodY, prodW, prodH, ac);
-  else infPlaceholderDark(ctx, prodX, prodY, prodW, prodH);
-
-  // Accent vertical divider
-  const divGrad = ctx.createLinearGradient(0, prodY, 0, prodY + prodH);
-  divGrad.addColorStop(0, 'transparent'); divGrad.addColorStop(0.3, ac); divGrad.addColorStop(0.7, p.shimmerLight); divGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = divGrad; ctx.fillRect(558, prodY, 3, prodH);
-
-  // Feature rows right side
-  const maxF = Math.min(features.length, 5);
-  const rowH = (H - tagY - 20) / maxF;
-  for (let i = 0; i < maxF; i++) {
-    const f = features[i];
-    const ry = tagY + 10 + i * rowH, midY = ry + rowH / 2;
-
-    // Connector dot
-    ctx.fillStyle = ac;
-    ctx.beginPath(); ctx.arc(561, midY, 5, 0, Math.PI * 2); ctx.fill();
-
-    // Card
-    infRoundRect(ctx, 575, ry + 8, W - 590, rowH - 16, 12);
-    ctx.fillStyle = p.surface; ctx.fill();
-    ctx.strokeStyle = p.border; ctx.lineWidth = 1; ctx.stroke();
-    infRoundRect(ctx, 575, ry + 8, 4, rowH - 16, 12, 12, 0, 0, 12);
-    ctx.fillStyle = ac; ctx.fill();
-
-    // Icon tile
-    infRoundRect(ctx, 591, midY - 22, 44, 44, 10);
-    ctx.fillStyle = infHexToRgba(ac, 0.22); ctx.fill();
-    ctx.font = `22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', 613, midY);
-
-    ctx.font = `bold 17px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = p.text; ctx.fillText(infTrunc(f.name || '', 28), 648, midY - 7);
-    ctx.font = `13px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 42), 648, midY + 16);
-
-    if (i < maxF - 1) {
-      ctx.strokeStyle = p.border; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(575, ry + rowH); ctx.lineTo(W - 15, ry + rowH); ctx.stroke();
+    // Label text
+    ctx.fillStyle = DARK; ctx.font = `700 48px ${FONT}`;
+    ctx.textAlign = labelAlign; ctx.textBaseline = 'bottom';
+    ctx.fillText(f.name || '', labelX, labelY);
+    ctx.fillStyle = MUTED; ctx.font = `400 38px ${FONT}`;
+    ctx.textBaseline = 'top';
+    const detailLines = _wrapText(ctx, f.detail || '', isLeft ? prodX - 100 : S - prodX - prodW - 100);
+    for (let j = 0; j < Math.min(detailLines.length, 2); j++) {
+      ctx.fillText(detailLines[j], labelX, labelY + 8 + j * 46);
     }
   }
 
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W - 16, H - 10);
+  // Bottom banner
+  const bannerY = S - 140;
+  ctx.fillStyle = ac;
+  _roundRect(ctx, 120, bannerY, S - 240, 100, 20);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.font = `700 44px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const bannerText = features.length > 2 ? (features[2].detail || features[2].name || '') : '';
+  ctx.fillText(bannerText.toUpperCase(), S / 2, bannerY + 50);
 }
 
-// ── Template 5: Dark Specs ───────────────────────────────────────────────
-async function infDarkSpecs(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
+// ── Template 4: Key Specifications ───────────────────────────────────────
+async function infSpecsList(canvas, productDataUrl, title, features, accentColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
   const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
 
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  const bgGlow = ctx.createRadialGradient(W/2, 360, 30, W/2, 360, 420);
-  bgGlow.addColorStop(0, infHexToRgba(ac, 0.09)); bgGlow.addColorStop(1, 'transparent');
-  ctx.fillStyle = bgGlow; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
-
-  // Tagline
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 16, ac, FONT);
-
-  // Product image center-top
-  const prodH = 480;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, 220, tagY + 10, 760, prodH, ac);
-  else infPlaceholderDark(ctx, 220, tagY + 10, 760, prodH);
-
-  // Spec cards row
-  const maxF = Math.min(features.length, 4);
-  const gx = 12, cw = (W - 60 - gx * (maxF - 1)) / maxF, ch = H - tagY - prodH - 32;
-  const startY = tagY + prodH + 22;
-
-  for (let i = 0; i < maxF; i++) {
-    const f = features[i];
-    const cx = 30 + i * (cw + gx);
-    infRoundRect(ctx, cx, startY, cw, ch, 14);
-    ctx.fillStyle = p.surface; ctx.fill();
-    ctx.strokeStyle = p.border; ctx.lineWidth = 1; ctx.stroke();
-
-    // Top accent strip
-    infRoundRect(ctx, cx, startY, cw, 3, 14, 14, 14, 0, 0);
-    ctx.fillStyle = ac; ctx.fill();
-
-    // Icon tile
-    infRoundRect(ctx, cx + cw/2 - 26, startY + 14, 52, 52, 12);
-    ctx.fillStyle = infHexToRgba(ac, 0.22); ctx.fill();
-    ctx.font = `28px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', cx + cw/2, startY + 40);
-
-    ctx.font = `bold 15px ${FONT}`; ctx.fillStyle = p.text; ctx.textBaseline = 'top';
-    ctx.fillText(infTrunc(f.name || '', 18), cx + cw/2, startY + 76);
-    ctx.font = `12px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 22), cx + cw/2, startY + 100);
-  }
-
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W/2, H - 10);
-}
-
-// ── Template 3: Feature Grid ──────────────────────────────────────────────
-// White bg, product top-center, 2-row icon grid below
-// ── Template 2: Feature Grid ──────────────────────────────────────────────
-async function infFeatureGrid(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-  const tileColors = ['#7c3aed','#059669','#d97706','#0284c7','#db2777','#4f6ef7'];
-
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
-
-  // Tagline
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 16, ac, FONT);
-
-  // Product image top-center
-  const prodH = 310;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, 250, tagY + 10, 700, prodH, ac);
-  else infPlaceholderDark(ctx, 250, tagY + 10, 700, prodH);
-
-  // Separator line
-  ctx.fillStyle = p.border; ctx.fillRect(40, tagY + prodH + 18, W - 80, 1);
-
-  // Feature cards grid (2 rows × 3 cols)
-  const maxF = Math.min(features.length, 6);
-  const cols = 3, cw = 366, ch = 150, gx = 15, gy = 12;
-  const gridW = cols * cw + (cols - 1) * gx;
-  const startX = (W - gridW) / 2;
-  const startY = tagY + prodH + 30;
-
-  for (let i = 0; i < maxF; i++) {
-    const f = features[i];
-    const col = i % cols, row = Math.floor(i / cols);
-    const cx = startX + col * (cw + gx), cy = startY + row * (ch + gy);
-    const tc = tileColors[i % tileColors.length];
-
-    infRoundRect(ctx, cx, cy, cw, ch, 12);
-    ctx.fillStyle = p.surface; ctx.fill();
-    ctx.strokeStyle = p.border; ctx.lineWidth = 1; ctx.stroke();
-
-    // Left accent strip
-    infRoundRect(ctx, cx, cy, 4, ch, 12, 12, 0, 0, 12);
-    ctx.fillStyle = tc; ctx.fill();
-
-    // Icon tile
-    infRoundRect(ctx, cx + 16, cy + (ch - 46) / 2, 46, 46, 10);
-    ctx.fillStyle = infHexToRgba(tc, 0.20); ctx.fill();
-    ctx.strokeStyle = infHexToRgba(tc, 0.40); ctx.lineWidth = 1; ctx.stroke();
-    ctx.font = `24px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', cx + 39, cy + ch / 2);
-
-    ctx.font = `bold 16px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = p.text; ctx.fillText(infTrunc(f.name || '', 24), cx + 76, cy + ch/2 - 6);
-    ctx.font = `13px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 32), cx + 76, cy + ch/2 + 17);
-  }
-
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W - 16, H - 10);
-}
-
-// ── Template 4: Hero Banner ───────────────────────────────────────────────
-// Product image full area, dark gradient overlay, feature pills at bottom
-// ── Template 3: Hero Banner ───────────────────────────────────────────────
-async function infHeroBanner(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-  const pillColors = ['#7c3aed','#059669','#d97706','#0284c7','#db2777'];
-
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-
-  // Full-bleed product image with glow + vignette
-  if (productDataUrl) {
-    const img = await infLoadImage(productDataUrl);
-    if (img) {
-      const bgGlow = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H) * 0.65);
-      bgGlow.addColorStop(0, infHexToRgba(ac, 0.22)); bgGlow.addColorStop(1, 'transparent');
-      ctx.fillStyle = bgGlow; ctx.fillRect(0, 0, W, H);
-      const aspect = img.width / img.height, bAspect = W / H;
-      let dw, dh, dx, dy;
-      if (aspect > bAspect) { dh = H; dw = H * aspect; dy = 0; dx = (W - dw) / 2; }
-      else { dw = W; dh = W / aspect; dx = 0; dy = (H - dh) / 2; }
-      ctx.drawImage(img, dx, dy, dw, dh);
-      ctx.fillStyle = infHexToRgba(ac, 0.08); ctx.fillRect(0, 0, W, H);
-    }
-  }
-
-  // Light gradient overlays for pill readability
-  const topGrad = ctx.createLinearGradient(0, 0, 0, 180);
-  topGrad.addColorStop(0, 'rgba(255,255,255,0.70)'); topGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = topGrad; ctx.fillRect(0, 0, W, 180);
-  const botGrad = ctx.createLinearGradient(0, H - 260, 0, H);
-  botGrad.addColorStop(0, 'transparent'); botGrad.addColorStop(1, 'rgba(255,255,255,0.88)');
-  ctx.fillStyle = botGrad; ctx.fillRect(0, H - 260, W, 260);
-
-  infDrawShimmer(ctx, W, ac);
-
-  // Tagline overlaid on top gradient
-  infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 20, ac, FONT);
-
-  // Coloured feature pills at bottom
-  const maxF = Math.min(features.length, 5);
-  const pillH = 60, pillGap = 10;
-  ctx.font = `bold 14px ${FONT}`;
-  const pillWidths = features.slice(0, maxF).map(f =>
-    Math.max(148, ctx.measureText(`${f.icon || '⭐'}  ${infTrunc(f.name || '', 18)}`).width + 60)
-  );
-  const totalPillW = pillWidths.reduce((a,b) => a+b, 0) + pillGap * (maxF - 1);
-  let px = (W - totalPillW) / 2;
-  const pillY = H - pillH - 40;
-
-  for (let i = 0; i < maxF; i++) {
-    const f = features[i];
-    const pw = pillWidths[i], pc = pillColors[i % pillColors.length];
-    infRoundRect(ctx, px, pillY, pw, pillH, pillH / 2);
-    ctx.fillStyle = infHexToRgba(pc, 0.88); ctx.fill();
-    ctx.strokeStyle = infLightenHex(pc, 0.25); ctx.lineWidth = 1; ctx.stroke();
-    ctx.font = `20px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', px + 14, pillY + pillH/2);
-    ctx.font = `bold 14px ${FONT}`;
-    ctx.fillText(infTrunc(f.name || '', 18), px + 42, pillY + pillH/2);
-    px += pw + pillGap;
-  }
-
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W - 18, H - 10);
-}
-
-// ── Template 5: Split Panel ───────────────────────────────────────────────
-// Dark left panel with product, white right panel with numbered feature list
-// ── Template 6: Split Panel ──────────────────────────────────────────────
-async function infSplitPanel(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-  const split = 500;
-
-  // Left panel
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, split, H);
-  const leftGlow = ctx.createLinearGradient(0, 0, split, 0);
-  leftGlow.addColorStop(0, infHexToRgba(ac, 0.12)); leftGlow.addColorStop(1, 'transparent');
-  ctx.fillStyle = leftGlow; ctx.fillRect(0, 0, split, H);
-
-  // Right panel slightly tinted
-  ctx.fillStyle = infTintHex('#f4f4f6', ac, 0.05); ctx.fillRect(split, 0, W - split, H);
-
-  // Gradient divider
-  const divGrad = ctx.createLinearGradient(0, 0, 0, H);
-  divGrad.addColorStop(0, 'transparent'); divGrad.addColorStop(0.2, ac); divGrad.addColorStop(0.8, p.shimmerLight); divGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = divGrad; ctx.fillRect(split - 2, 0, 4, H);
-
-  infDrawShimmer(ctx, split, ac);
-
-  // Product left
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, 14, 14, split - 28, H - 28, ac);
-  else infPlaceholderDark(ctx, 14, 14, split - 28, H - 28);
-
-  // Right: tagline + feature rows
-  const tagY = infDrawTagline(ctx, W - split, tagline || { line1: infTrunc(title, 26), line2: '' }, 24, ac, FONT);
-  // Note: infDrawTagline uses ctx.textAlign='center' with W/2 — override for right panel
-  // Redraw tagline correctly offset for right panel
-  ctx.clearRect(split, 0, W - split, tagY + 10);
-  ctx.fillStyle = infTintHex('#f4f4f6', ac, 0.05); ctx.fillRect(split, 0, W - split, tagY + 10);
-  const rW = W - split, rX = split;
-  ctx.fillStyle = p.text; ctx.font = `800 32px ${FONT}`;
+  // Title on right — wrapped
+  const specX = S * 0.48;
+  const specW = S * 0.48;
+  ctx.fillStyle = DARK; ctx.font = `700 66px ${FONT}`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(infTrunc(tagline?.line1 || infTrunc(title, 26), 28), rX + 28, 24);
-  if (tagline?.line2) {
-    ctx.font = `400 18px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(tagline.line2, 38), rX + 28, 66);
+  const titleLines = _wrapText(ctx, title, specW);
+  let ty = 80;
+  for (const line of titleLines.slice(0, 3)) {
+    ctx.fillText(line, specX, ty);
+    ty += 78;
   }
-  const rightTagY = tagline?.line2 ? 100 : 68;
+  ctx.fillStyle = ac; ctx.fillRect(specX, ty + 6, 120, 6);
 
-  ctx.fillStyle = p.border; ctx.fillRect(rX + 28, rightTagY, rW - 56, 1);
+  // Product on left
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 40, 80, S * 0.44, S - 160);
+  }
 
+  // Specs
   const maxF = Math.min(features.length, 6);
-  const rowH = (H - rightTagY - 20) / maxF;
+  const specStartY = ty + 40;
+  const rowH = Math.min(220, (S - specStartY - 60) / maxF);
+
   for (let i = 0; i < maxF; i++) {
     const f = features[i];
-    const ry = rightTagY + 10 + i * rowH, midY = ry + rowH / 2;
+    const ry = specStartY + i * rowH;
 
-    // Number badge
-    infRoundRect(ctx, rX + 28, midY - 19, 38, 38, 8);
-    ctx.fillStyle = ac; ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.font = `bold 15px ${FONT}`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(String(i + 1), rX + 47, midY);
+    ctx.fillStyle = DARK; ctx.font = `700 44px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(f.name || '', specX, ry + 14);
 
-    // Icon tile
-    infRoundRect(ctx, rX + 76, midY - 18, 36, 36, 8);
-    ctx.fillStyle = infHexToRgba(ac, 0.20); ctx.fill();
-    ctx.font = `18px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', rX + 94, midY);
-
-    ctx.font = `bold 15px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = p.text; ctx.fillText(infTrunc(f.name || '', 26), rX + 122, midY - 4);
-    ctx.font = `12px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 36), rX + 122, midY + 16);
+    ctx.fillStyle = MUTED; ctx.font = `400 38px ${FONT}`;
+    const detailLines = _wrapText(ctx, f.detail || '', specW);
+    for (let j = 0; j < Math.min(detailLines.length, 2); j++) {
+      ctx.fillText(detailLines[j], specX, ry + 68 + j * 46);
+    }
 
     if (i < maxF - 1) {
-      ctx.strokeStyle = p.border; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(rX + 28, ry + rowH); ctx.lineTo(W - 24, ry + rowH); ctx.stroke();
+      ctx.fillStyle = '#e5e7eb'; ctx.fillRect(specX, ry + rowH - 2, specW, 2);
     }
   }
 }
 
-// ── Template 6: Bold Blocks ───────────────────────────────────────────────
-// White, product top half, colorful feature blocks in row below
-// ── Template 7: Condition Showcase ───────────────────────────────────────
-async function infConditionShowcase(canvas, productDataUrl, title, features, accentColor, tagline, conditionBadges) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
+// ── Template 5: Comparison Table ─────────────────────────────────────────
+async function infComparison(canvas, productDataUrl, title, features, accentColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
   const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
 
-  const badgeColors = {
-    green: { bg: 'rgba(34,197,94,0.15)',  border: 'rgba(34,197,94,0.55)',  text: '#4ade80' },
-    blue:  { bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.55)', text: '#93c5fd' },
-    amber: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.50)', text: '#fcd34d' },
-    red:   { bg: 'rgba(239,68,68,0.15)',  border: 'rgba(239,68,68,0.50)',  text: '#f87171' },
+  // Title — wrapped
+  ctx.fillStyle = DARK; ctx.font = `700 66px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const titleLines = _wrapText(ctx, title, S - 300);
+  let ty = 70;
+  for (const line of titleLines.slice(0, 2)) {
+    ctx.fillText(line, S / 2, ty);
+    ty += 80;
+  }
+
+  // Table
+  const tableX = 120, tableY = ty + 30;
+  const tableW = S - 240, rowH = 170;
+  const col1W = tableW * 0.36, col2W = tableW * 0.64;
+  const maxRows = Math.min(features.length, 6);
+  const tableH = (maxRows + 1) * rowH;
+
+  // Header
+  ctx.fillStyle = '#f8f9fa'; ctx.fillRect(tableX, tableY, tableW, rowH);
+  ctx.fillStyle = '#e5e7eb'; ctx.fillRect(tableX, tableY + rowH - 2, tableW, 3);
+
+  ctx.fillStyle = MUTED; ctx.font = `600 42px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('Feature', tableX + col1W / 2, tableY + rowH / 2);
+  ctx.fillStyle = ac; ctx.font = `700 42px ${FONT}`;
+  ctx.fillText('Specification', tableX + col1W + col2W / 2, tableY + rowH / 2);
+
+  ctx.fillStyle = '#e5e7eb'; ctx.fillRect(tableX + col1W - 1, tableY, 3, tableH);
+
+  for (let i = 0; i < maxRows; i++) {
+    const f = features[i];
+    const ry = tableY + (i + 1) * rowH;
+    if (i % 2 === 0) { ctx.fillStyle = '#fafbfc'; ctx.fillRect(tableX, ry, tableW, rowH); }
+    ctx.fillStyle = '#e5e7eb'; ctx.fillRect(tableX, ry + rowH - 2, tableW, 2);
+
+    ctx.fillStyle = DARK; ctx.font = `500 42px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(f.name || '', tableX + 36, ry + rowH / 2);
+
+    ctx.fillStyle = MUTED; ctx.font = `400 38px ${FONT}`;
+    ctx.textAlign = 'left';
+    const detailLines = _wrapText(ctx, f.detail || '', col2W - 60);
+    const dlStartY = ry + rowH / 2 - (detailLines.length - 1) * 24;
+    for (let j = 0; j < Math.min(detailLines.length, 2); j++) {
+      ctx.fillText(detailLines[j], tableX + col1W + 30, dlStartY + j * 48);
+    }
+  }
+
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 3;
+  ctx.strokeRect(tableX, tableY, tableW, tableH);
+}
+
+// ── Template 6: What's Included ──────────────────────────────────────────
+async function infWhatsIncluded(canvas, productDataUrl, title, features, accentColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  ctx.fillStyle = '#f5f5f7'; ctx.fillRect(0, 0, S, S);
+
+  ctx.fillStyle = DARK; ctx.font = `700 96px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('Everything you need.', S / 2, 70);
+
+  // Product name
+  ctx.fillStyle = MUTED; ctx.font = `400 40px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const titleLines = _wrapText(ctx, title, S - 500);
+  for (let i = 0; i < Math.min(titleLines.length, 2); i++) {
+    ctx.fillText(titleLines[i], S / 2, 190 + i * 50);
+  }
+
+  // Product centered
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 280, 310, S - 560, S - 820);
+  }
+
+  // Bottom: included items — 2x2 grid
+  const itemY = S - 440;
+  const maxItems = Math.min(features.length, 4);
+  const colW = (S - 240) / 2;
+
+  for (let i = 0; i < maxItems; i++) {
+    const f = features[i];
+    const col = i % 2, row = Math.floor(i / 2);
+    const ix = 120 + col * colW, iy = itemY + row * 150;
+
+    ctx.fillStyle = '#22c55e'; ctx.font = `700 46px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('✓', ix, iy);
+
+    ctx.fillStyle = DARK; ctx.font = `600 40px ${FONT}`;
+    ctx.fillText(f.name || '', ix + 60, iy);
+    ctx.fillStyle = MUTED; ctx.font = `400 34px ${FONT}`;
+    const detailLines = _wrapText(ctx, f.detail || '', colW - 80);
+    ctx.fillText(detailLines[0] || '', ix + 60, iy + 52);
+  }
+
+  ctx.fillStyle = MUTED; ctx.font = `italic 36px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('See listing for complete details', S / 2, S - 40);
+}
+
+// ── Template 7: Split Features ───────────────────────────────────────────
+async function infSplitFeatures(canvas, productDataUrl, title, features, accentColor) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  const ac = infValidHex(accentColor);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
+
+  const split = S * 0.44;
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 40, 40, split - 60, S - 80);
+  }
+
+  ctx.fillStyle = ac; ctx.fillRect(split, 70, 5, S - 140);
+
+  const rx = split + 60;
+  const maxTextW = S - rx - 70;
+  ctx.fillStyle = DARK; ctx.font = `800 60px ${FONT}`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const titleLines = _wrapText(ctx, title, maxTextW);
+  let ty = 70;
+  for (const line of titleLines.slice(0, 3)) {
+    ctx.fillText(line, rx, ty);
+    ty += 72;
+  }
+  ctx.fillStyle = ac; ctx.fillRect(rx, ty + 10, 120, 5);
+
+  const maxF = Math.min(features.length, 6);
+  const featureStartY = ty + 50;
+  const rowH = Math.min(210, (S - featureStartY - 40) / maxF);
+
+  for (let i = 0; i < maxF; i++) {
+    const f = features[i];
+    const fy = featureStartY + i * rowH;
+
+    ctx.fillStyle = ac;
+    ctx.beginPath(); ctx.arc(rx + 32, fy + 40, 32, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `700 32px ${FONT}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), rx + 32, fy + 40);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = DARK; ctx.font = `600 40px ${FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(f.name || '', rx + 82, fy + 8);
+
+    ctx.fillStyle = MUTED; ctx.font = `400 34px ${FONT}`;
+    const detailLines = _wrapText(ctx, f.detail || '', maxTextW - 90);
+    for (let j = 0; j < Math.min(detailLines.length, 2); j++) {
+      ctx.fillText(detailLines[j], rx + 82, fy + 58 + j * 42);
+    }
+
+    if (i < maxF - 1) {
+      ctx.fillStyle = '#e5e7eb'; ctx.fillRect(rx, fy + rowH - 2, maxTextW, 2);
+    }
+  }
+}
+
+// ── Template 8: Condition Showcase ───────────────────────────────────────
+async function infConditionShowcase(canvas, productDataUrl, title, features, accentColor, headline, conditionBadges) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = S; canvas.height = S;
+  const ac = infValidHex(accentColor);
+
+  const badgeStyles = {
+    green: { bg: '#f0fdf4', border: '#22c55e', text: '#16a34a' },
+    blue:  { bg: '#eff6ff', border: '#3b82f6', text: '#2563eb' },
+    amber: { bg: '#fffbeb', border: '#f59e0b', text: '#d97706' },
+    red:   { bg: '#fef2f2', border: '#ef4444', text: '#dc2626' },
   };
   const defaultBadges = [
     { label: 'Condition Verified', colorKey: 'green' },
-    { label: 'Includes Accessories', colorKey: 'blue' },
-    { label: 'Fully Tested',        colorKey: 'amber' },
-    { label: 'Ready to Ship',       colorKey: 'red' },
+    { label: 'All Accessories Included', colorKey: 'blue' },
+    { label: 'Fully Tested', colorKey: 'amber' },
+    { label: 'Ready to Ship', colorKey: 'green' },
   ];
   const badges = ((conditionBadges && conditionBadges.length > 0) ? conditionBadges : defaultBadges).slice(0, 4);
 
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  const bgGlow = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, 520);
-  bgGlow.addColorStop(0, infHexToRgba(ac, 0.09)); bgGlow.addColorStop(1, 'transparent');
-  ctx.fillStyle = bgGlow; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
 
-  // Tagline
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 16, ac, FONT);
+  // Title wrapped
+  ctx.fillStyle = DARK; ctx.font = `700 60px ${FONT}`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const titleLines = _wrapText(ctx, title, S - 240);
+  let ty = 60;
+  for (const line of titleLines.slice(0, 2)) {
+    ctx.fillText(line, S / 2, ty);
+    ty += 74;
+  }
 
-  // Product — large, centered
-  const BW = 272, BH = 62;
-  const prodX = 220, prodY = tagY + 14, prodW = 760, prodH = H - tagY - 90;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, prodX, prodY, prodW, prodH, ac);
-  else infPlaceholderDark(ctx, prodX, prodY, prodW, prodH);
+  // Product
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 240, ty + 16, S - 480, S - ty - 340);
+  }
 
-  // 4 condition badges — top-left, top-right, bottom-left, bottom-right
-  const bPositions = [
-    { x: 28,              y: prodY + 12 },
-    { x: W - BW - 28,     y: prodY + 12 },
-    { x: 28,              y: prodY + prodH - BH - 12 },
-    { x: W - BW - 28,     y: prodY + prodH - BH - 12 },
-  ];
+  // Condition badges — 2x2 grid
+  const badgeCols = 2, badgeGap = 30;
+  const badgeW = (S - 240 - badgeGap) / badgeCols;
+  const badgeH = 110;
+  const badgeStartY = S - badgeH * 2 - badgeGap - 60;
 
   badges.forEach((badge, i) => {
-    const bp = bPositions[i], bc = badgeColors[badge.colorKey] || badgeColors.green;
-    infRoundRect(ctx, bp.x, bp.y, BW, BH, 12);
-    ctx.fillStyle = bc.bg; ctx.fill();
-    ctx.strokeStyle = bc.border; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = bc.text; ctx.font = `bold 17px ${FONT}`;
+    const col = i % badgeCols, row = Math.floor(i / badgeCols);
+    const bx = 120 + col * (badgeW + badgeGap);
+    const by = badgeStartY + row * (badgeH + badgeGap);
+    const bs = badgeStyles[badge.colorKey] || badgeStyles.green;
+
+    _roundRect(ctx, bx, by, badgeW, badgeH, 20);
+    ctx.fillStyle = bs.bg; ctx.fill();
+    ctx.strokeStyle = bs.border; ctx.lineWidth = 3; ctx.stroke();
+
+    ctx.fillStyle = bs.text; ctx.font = `700 38px ${FONT}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(infTrunc(badge.label, 22), bp.x + BW/2, bp.y + BH/2);
+    ctx.fillText(badge.label, bx + badgeW / 2, by + badgeH / 2);
   });
-
-  // Bottom title bar
-  ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.fillRect(0, H - 56, W, 56);
-  ctx.fillStyle = p.text; ctx.font = `bold 24px ${FONT}`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(infTrunc(title, 54), W/2, H - 28);
-
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W - 16, H - 10);
 }
 
-// ── Template 8: Minimal ──────────────────────────────────────────────────
-async function infMinimal(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const W = 1200, H = 900, ctx = canvas.getContext('2d');
-  canvas.width = W; canvas.height = H;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-
-  ctx.fillStyle = p.bg; ctx.fillRect(0, 0, W, H);
-  infDrawShimmer(ctx, W, ac);
-
-  // Thin frame
-  ctx.strokeStyle = p.border; ctx.lineWidth = 1;
-  ctx.strokeRect(14, 14, W - 28, H - 28);
-
-  // Left gradient accent bar
-  const barGrad = ctx.createLinearGradient(0, 14, 0, H - 14);
-  barGrad.addColorStop(0, 'transparent'); barGrad.addColorStop(0.3, ac); barGrad.addColorStop(0.7, p.shimmerLight); barGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = barGrad; ctx.fillRect(14, 14, 4, H - 28);
-
-  // Tagline
-  const tagY = infDrawTagline(ctx, W, tagline || { line1: infTrunc(title, 38), line2: '' }, 22, ac, FONT);
-
-  // Large product center
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, 200, tagY + 14, 800, H - tagY - 28, ac);
-  else infPlaceholderDark(ctx, 200, tagY + 14, 800, H - tagY - 28);
-
-  // Left feature callouts (top 3)
-  const leftF = features.slice(0, Math.min(3, features.length));
-  leftF.forEach((f, i) => {
-    const ly = tagY + 60 + i * Math.floor((H - tagY - 60) / 3);
-    ctx.fillStyle = p.text; ctx.font = `bold 14px ${FONT}`;
-    ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`${f.icon || ''} ${infTrunc(f.name || '', 16)}`, 182, ly);
-    ctx.font = `12px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 20), 182, ly + 20);
-    ctx.strokeStyle = infHexToRgba(ac, 0.45); ctx.lineWidth = 1;
-    ctx.setLineDash([3, 4]);
-    ctx.beginPath(); ctx.moveTo(186, ly - 4); ctx.lineTo(200, ly - 4); ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Right feature callouts (next 3)
-  const rightF = features.slice(3, Math.min(6, features.length));
-  rightF.forEach((f, i) => {
-    const ry = tagY + 60 + i * Math.floor((H - tagY - 60) / 3);
-    ctx.fillStyle = p.text; ctx.font = `bold 14px ${FONT}`;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`${f.icon || ''} ${infTrunc(f.name || '', 16)}`, 1018, ry);
-    ctx.font = `12px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(f.detail || '', 20), 1018, ry + 20);
-    ctx.strokeStyle = infHexToRgba(ac, 0.45); ctx.lineWidth = 1;
-    ctx.setLineDash([3, 4]);
-    ctx.beginPath(); ctx.moveTo(1000, ry - 4); ctx.lineTo(1016, ry - 4); ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  ctx.font = `11px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', W/2, H - 20);
-}
-
-// ── Template 9: Social Card ──────────────────────────────────────────────
-async function infSocialCard(canvas, productDataUrl, title, features, accentColor, tagline) {
-  const S = 1080, ctx = canvas.getContext('2d');
+// ── Template 9: Bullet Points ────────────────────────────────────────────
+async function infBulletPoints(canvas, productDataUrl, title, features, accentColor, headline) {
+  const ctx = canvas.getContext('2d');
   canvas.width = S; canvas.height = S;
-  const ac = infValidHex(accentColor);
-  const p = infBuildDepthPalette(ac);
-  const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-  const pillColors = ['#7c3aed','#059669','#d97706'];
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, S, S);
 
-  // Background
-  const bgGrd = ctx.createLinearGradient(0, 0, S, S);
-  bgGrd.addColorStop(0, p.bg);
-  bgGrd.addColorStop(1, infTintHex(p.bg, infDarkenHex(ac, 0.25), 0.25));
-  ctx.fillStyle = bgGrd; ctx.fillRect(0, 0, S, S);
-
-  // Ambient circles
-  ctx.fillStyle = infHexToRgba(ac, 0.07);
-  ctx.beginPath(); ctx.arc(S * 0.85, S * 0.14, 310, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(S * 0.10, S * 0.82, 230, 0, Math.PI * 2); ctx.fill();
-
-  infDrawShimmer(ctx, S, ac);
-
-  // Tagline
-  const line1 = tagline?.line1 || infTrunc(title, 26);
-  const line2 = tagline?.line2 || '';
-  ctx.fillStyle = '#fff'; ctx.font = `800 44px ${FONT}`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  ctx.fillText(infTrunc(line1, 26), S/2, 28);
-  if (line2) {
-    ctx.font = `400 24px ${FONT}`; ctx.fillStyle = p.muted;
-    ctx.fillText(infTrunc(line2, 36), S/2, 82);
-  }
-  const tagBottom = line2 ? 120 : 82;
-
-  // Underline
-  const ulGrad = ctx.createLinearGradient(S/2 - 80, 0, S/2 + 80, 0);
-  ulGrad.addColorStop(0, 'transparent'); ulGrad.addColorStop(0.4, ac); ulGrad.addColorStop(0.6, p.shimmerLight); ulGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = ulGrad; ctx.fillRect(S/2 - 80, tagBottom - 4, 160, 3);
-
-  // Product image
-  const imgY = tagBottom + 10;
-  if (productDataUrl) await infDrawProduct(ctx, productDataUrl, 100, imgY, 880, S - imgY - 160, ac);
-  else { ctx.fillStyle = p.surface; infRoundRect(ctx, 100, imgY, 880, S - imgY - 160, 24); ctx.fill(); }
-
-  // Coloured feature pills
-  const maxF = Math.min(features.length, 3);
-  const pillH = 70, pillW = (S - 80 - 14 * (maxF - 1)) / maxF;
-  const pillY = S - pillH - 34;
-  for (let i = 0; i < maxF; i++) {
-    const f = features[i], px = 40 + i * (pillW + 14), pc = pillColors[i % pillColors.length];
-    infRoundRect(ctx, px, pillY, pillW, pillH, 18);
-    ctx.fillStyle = infHexToRgba(pc, 0.88); ctx.fill();
-    ctx.strokeStyle = infLightenHex(pc, 0.25); ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.font = `28px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff'; ctx.fillText(f.icon || '⭐', px + 40, pillY + pillH/2);
-    ctx.font = `bold 15px ${FONT}`;
-    ctx.fillText(infTrunc(f.name || '', 18), px + pillW/2 + 14, pillY + pillH/2);
+  const headText = headline || title;
+  ctx.fillStyle = DARK; ctx.font = `800 100px ${FONT}`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const headLines = _wrapText(ctx, headText, S - 240);
+  let hy = 80;
+  for (const line of headLines.slice(0, 3)) {
+    ctx.fillText(line, 120, hy);
+    hy += 120;
   }
 
-  ctx.font = `13px ${FONT}`; ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('LazyListings', S - 22, S - 12);
+  // Bullet points
+  const bulletStartY = hy + 16;
+  const maxBullets = Math.min(features.length, 3);
+  for (let i = 0; i < maxBullets; i++) {
+    const f = features[i];
+    const by = bulletStartY + i * 82;
+    ctx.fillStyle = DARK; ctx.font = `400 48px ${FONT}`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const text = f.detail ? `${f.name}: ${f.detail}` : (f.name || '');
+    ctx.fillText(`•  ${text}`, 120, by);
+  }
+
+  // Product — rest of space
+  const prodTop = bulletStartY + maxBullets * 82 + 30;
+  const prodH = S - prodTop - 40;
+  if (productDataUrl) {
+    await infDrawProductClean(ctx, productDataUrl, 120, prodTop, S - 240, prodH);
+  }
 }
 
-// ── Canvas helpers ──────────────────────────────────────────────────────────
+
+// ── Drawing helpers ─────────────────────────────────────────────────────────
+
+// Draw product image clean — no vignette, no glow, no tint, with padding
+async function infDrawProductClean(ctx, src, x, y, w, h) {
+  await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const pad = Math.min(w, h) * 0.04;
+      const iw = w - pad * 2, ih = h - pad * 2;
+      const aspect = img.width / img.height, boxAspect = iw / ih;
+      let dw, dh, dx, dy;
+      if (aspect > boxAspect) { dw = iw; dh = iw / aspect; dx = x + pad; dy = y + pad + (ih - dh) / 2; }
+      else { dh = ih; dw = ih * aspect; dy = y + pad; dx = x + pad + (iw - dw) / 2; }
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, dx, dy, dw, dh);
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = src;
+  });
+}
+
+// Keep old infDrawProduct for compatibility — now just calls clean version
+async function infDrawProduct(ctx, src, x, y, w, h, accentColor) {
+  await infDrawProductClean(ctx, src, x, y, w, h);
+}
 
 function infValidHex(hex) {
   return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#4f6ef7';
 }
 
+function _roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+// Keep old name for compatibility
 function infRoundRect(ctx, x, y, w, h, r, tl, tr, br, bl) {
   const _tl = tl ?? r, _tr = tr ?? r, _br = br ?? r, _bl = bl ?? r;
   ctx.beginPath();
@@ -845,88 +714,36 @@ function infTintHex(base, accent, ratio) {
 function infBuildDepthPalette(accentHex) {
   const ac = infValidHex(accentHex);
   return {
-    bg:           infTintHex('#ffffff', ac, 0.04),
-    surface:      infHexToRgba(ac, 0.07),
-    border:       infHexToRgba(ac, 0.18),
-    glow:         infHexToRgba(ac, 0.12),
+    bg:           '#ffffff',
+    surface:      infHexToRgba(ac, 0.06),
+    border:       infHexToRgba(ac, 0.14),
+    glow:         infHexToRgba(ac, 0.08),
     shimmer:      ac,
     shimmerLight: infLightenHex(ac, 0.30),
     text:         '#111111',
-    muted:        'rgba(0,0,0,0.42)',
+    muted:        'rgba(0,0,0,0.50)',
   };
 }
 
-async function infDrawProduct(ctx, src, x, y, w, h, accentColor) {
-  const ac = infValidHex(accentColor);
-  // 1. Radial glow behind product
-  const glow = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, Math.max(w, h) * 0.65);
-  glow.addColorStop(0, infHexToRgba(ac, 0.12));
-  glow.addColorStop(1, 'transparent');
-  ctx.fillStyle = glow; ctx.fillRect(x, y, w, h);
-  // 2. Draw fitted image
-  await new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const aspect = img.width / img.height, boxAspect = w / h;
-      let dw, dh, dx, dy;
-      if (aspect > boxAspect) { dw = w; dh = w / aspect; dx = x; dy = y + (h - dh) / 2; }
-      else { dh = h; dw = h * aspect; dy = y; dx = x + (w - dw) / 2; }
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, dx, dy, dw, dh);
-      resolve();
-    };
-    img.onerror = resolve;
-    img.src = src;
-  });
-  // 3. Radial vignette (edges fade to white)
-  const vig = ctx.createRadialGradient(x + w/2, y + h/2, Math.min(w, h) * 0.30, x + w/2, y + h/2, Math.max(w, h) * 0.78);
-  vig.addColorStop(0, 'transparent');
-  vig.addColorStop(1, 'rgba(255,255,255,0.72)');
-  ctx.fillStyle = vig; ctx.fillRect(x, y, w, h);
-  // 4. Subtle accent tint
-  ctx.fillStyle = infHexToRgba(ac, 0.08); ctx.fillRect(x, y, w, h);
-}
-
 function infDrawShimmer(ctx, W, ac) {
-  const shimmer = ctx.createLinearGradient(0, 0, W * 0.75, 0);
-  shimmer.addColorStop(0, ac);
-  shimmer.addColorStop(0.55, infLightenHex(ac, 0.30));
-  shimmer.addColorStop(1, 'transparent');
-  ctx.fillStyle = shimmer; ctx.fillRect(0, 0, W, 3);
+  // Intentionally minimal — just a thin accent line at top
+  ctx.fillStyle = ac; ctx.fillRect(0, 0, W, 3);
 }
 
-// Returns the y-offset after the tagline (i.e. how much vertical space was used)
 function infDrawTagline(ctx, W, tagline, startY, ac, FONT) {
   const line1 = tagline?.line1 || '';
   const line2 = tagline?.line2 || '';
   if (line1) {
-    ctx.fillStyle = '#ffffff'; ctx.font = `800 50px ${FONT}`;
+    ctx.fillStyle = '#111111'; ctx.font = `800 50px ${FONT}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.fillText(infTrunc(line1, 42), W/2, startY);
   }
   if (line2) {
-    ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.font = `400 26px ${FONT}`;
+    ctx.fillStyle = 'rgba(0,0,0,0.50)'; ctx.font = `400 26px ${FONT}`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     ctx.fillText(infTrunc(line2, 58), W/2, startY + 62);
   }
   return line2 ? startY + 104 : (line1 ? startY + 66 : startY);
-}
-
-function infBuildPalette(baseHex, count) {
-  // Generate palette variations from accent color
-  const h = baseHex.replace('#', '');
-  const r = parseInt(h.substring(0,2),16);
-  const g = parseInt(h.substring(2,4),16);
-  const b = parseInt(h.substring(4,6),16);
-  const shifts = [0, -40, 40, -80, 80];
-  return Array.from({ length: count }, (_, i) => {
-    const s = shifts[i] || 0;
-    const nr = Math.min(255, Math.max(0, r + s));
-    const ng = Math.min(255, Math.max(0, g + Math.round(s * 0.6)));
-    const nb = Math.min(255, Math.max(0, b - Math.round(s * 0.3)));
-    return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
-  });
 }
 
 function infLoadImage(src) {
@@ -969,6 +786,42 @@ function infPlaceholderDark(ctx, x, y, w, h) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('Product Image', x + w/2, y + h/2);
 }
+
+function infBuildPalette(baseHex, count) {
+  const h = baseHex.replace('#', '');
+  const r = parseInt(h.substring(0,2),16);
+  const g = parseInt(h.substring(2,4),16);
+  const b = parseInt(h.substring(4,6),16);
+  const shifts = [0, -40, 40, -80, 80];
+  return Array.from({ length: count }, (_, i) => {
+    const s = shifts[i] || 0;
+    const nr = Math.min(255, Math.max(0, r + s));
+    const ng = Math.min(255, Math.max(0, g + Math.round(s * 0.6)));
+    const nb = Math.min(255, Math.max(0, b - Math.round(s * 0.3)));
+    return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`;
+  });
+}
+
+// ── Text helpers ────────────────────────────────────────────────────────────
+
+function _wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
 
 function escapeHtml(str) {
   const div = document.createElement('div');

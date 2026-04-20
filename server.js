@@ -858,42 +858,49 @@ Product: "${title}"${descText ? `\n\nDescription:\n${descText}` : ''}
 Return ONLY valid JSON in exactly this format:
 {
   "accentColor": "#hexcolor",
+  "headline": "Short punchy marketing headline (max 6 words, like 'Built for high-speed business.' or 'Enterprise power. Zero subscriptions.')",
   "featureGroups": [
     {
       "id": "specs",
       "features": [
-        { "name": "Short Name", "detail": "Precise spec, max 35 chars", "icon": "emoji", "position": "top-left", "hx": 0.45, "hy": 0.55 }
+        { "name": "Short Name", "detail": "Full specification text, up to 60 chars", "icon": "emoji", "position": "top-left", "hx": 0.45, "hy": 0.55 }
       ]
     },
     { "id": "design", "features": [...] },
     { "id": "value", "features": [...] }
   ],
   "conditionBadges": [
-    { "label": "Badge text (max 22 chars)", "colorKey": "green" }
+    { "label": "Badge text (max 20 chars)", "colorKey": "green" }
   ]
 }
+
+Rules for headline:
+- Short, punchy, marketing-style headline for the product (NOT the product name)
+- Max 6 words. Examples: "Built for high-speed business.", "Enterprise power. Zero subscriptions.", "Unparalleled network defense.", "Professional grade. Affordable price."
+- Should highlight the product's key value proposition or use case
+- End with a period
 
 Rules for featureGroups — return exactly 3 groups, each with 5–6 features. Each group covers a DIFFERENT angle:
 
 Group "specs" — Technical specifications only: materials, dimensions, model numbers, performance figures, connectivity, compatibility. Use your product knowledge to be precise (e.g. "Full-Grain Suede" not just "Suede", "Vulcanized Gum Sole" not just "Rubber Sole").
 
-Group "design" — Visual and aesthetic details only: colorways, stitching, logo placement, silhouette, finish, texture, what makes it visually distinctive. Describe what you can SEE in the image.
+Group "design" — Key selling points and physical features: build quality, form factor, ports/connections visible, design advantages (fanless, compact, rack-mountable), what makes it stand out from competitors. Focus on buyer-relevant attributes, not just colors.
 
 Group "value" — Buyer-focused highlights only: brand heritage, retail price context, resale value, what's included, ideal use (e.g. "Court-to-Street Style", "Collector's Item"), condition clues.
 
 Rules for each feature:
 - "name": 1–3 very specific words (NOT generic — "Herringbone Tread" not "Rubber Sole", "Perforated Toe Cap" not "Breathable")
-- "detail": specific fact, max 35 chars
+- "detail": full specification text, max 60 chars — do NOT abbreviate or truncate, write the complete fact
 - "icon": single most relevant emoji
 - "position": one of top-left, top-right, bottom-left, bottom-right, left, right — use all 6 positions, no repeats within a group
 - "hx": 0.0–1.0 — where on the product image this feature is physically located (0=left, 1=right)
 - "hy": 0.0–1.0 — where on the product image this feature is physically located (0=top, 1=bottom)
 
 Rules for accentColor:
-- Brand-appropriate hex (Nike → "#ff6600", Apple → "#1c1c1e", Jordan → "#cc0000", Adidas → "#000000", Dell → "#0076ce", Sony → "#003087", default → "#4f6ef7")
+- Brand-appropriate hex (Nike → "#ff6600", Apple → "#1c1c1e", Jordan → "#cc0000", Adidas → "#000000", Dell → "#0076ce", Sony → "#003087", Cisco → "#049fd9", default → "#4f6ef7")
 
 Rules for conditionBadges (exactly 4):
-- "label": short trust signal max 22 chars
+- "label": short trust signal, max 20 chars, must be COMPLETE words (never truncate)
 - "colorKey": green (cosmetic condition), blue (completeness), amber (functionality), red (notable detail)`,
     });
 
@@ -925,9 +932,13 @@ Rules for conditionBadges (exactly 4):
     const conditionBadges = (result.conditionBadges || [])
       .filter(b => b && typeof b.label === 'string' && validColorKeys.has(b.colorKey))
       .slice(0, 4)
-      .map(b => ({ ...b, label: b.label.substring(0, 24) }));
+      .map(b => ({ ...b, label: b.label.substring(0, 28) }));
 
-    res.json({ success: true, features, featureGroups, accentColor, conditionBadges });
+    const headline = (typeof result.headline === 'string' && result.headline.length > 0)
+      ? result.headline.substring(0, 80)
+      : '';
+
+    res.json({ success: true, features, featureGroups, accentColor, conditionBadges, headline });
   } catch (err) {
     console.error('Generate images error:', err);
     res.status(500).json({ success: false, error: err.message });

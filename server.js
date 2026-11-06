@@ -195,10 +195,42 @@ app.get('/api/ebay/test-token', async (req, res) => {
   }
 });
 
-// ── Upload image to eBay ──
+// ── Upload image to eBay Picture Services (EPS) via the Media API ──
+// The Trading API UploadSiteHostedPictures call was decommissioned by eBay
+// (Sept 30, 2026) and now returns HTTP 404 "Resource not found".
+// Replacement: Media API createImageFromFile (multipart) + getImage (returns the EPS URL).
+// Requires an OAuth user token with the sell.inventory scope (Auth'n'Auth tokens are not accepted).
+const EBAY_MEDIA_API = 'https://apim.ebay.com/commerce/media/v1_beta';
+
+// Detect the real image type from magic bytes (the client compresses to JPEG but keeps the original name/mime)
+function sniffImageType(buf) {
+  if (buf.length > 3 && buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return { mime: 'image/jpeg', ext: 'jpg' };
+  if (buf.length > 8 && buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))) return { mime: 'image/png', ext: 'png' };
+  if (buf.length > 6 && buf.slice(0, 3).toString('ascii') === 'GIF') return { mime: 'image/gif', ext: 'gif' };
+  if (buf.length > 12 && buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') return { mime: 'image/webp', ext: 'webp' };
+  if (buf.length > 2 && buf[0] === 0x42 && buf[1] === 0x4D) return { mime: 'image/bmp', ext: 'bmp' };
+  return null;
+}
+
+// Parse eBay REST error bodies: { errors: [{ errorId, domain, category, message, longMessage }] }
+function parseEbayRestErrors(text) {
+  try {
+    const j = JSON.parse(text);
+    return (j.errors || []).map(e => ({
+      code: String(e.errorId || ''), severity: e.category || '', short: e.message || '', long: e.longMessage || e.message || '',
+    }));
+  } catch { return []; }
+}
+
 app.post('/api/ebay/upload-image', requireRole('admin', 'publisher'), async (req, res) => {
-  const token = req.userConfig.ebayOAuthToken || req.userConfig.ebayToken;
-  if (!token) return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
+  const oauthToken = req.userConfig.ebayOAuthToken;
+  if (!oauthToken && !req.userConfig.ebayToken) {
+    return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
+  }
+  if (!oauthToken) {
+    console.error(`[upload-image] user=${req.session.userId} has only a manual (Auth'n'Auth) token — Media API needs OAuth`);
+    return res.json({ success: false, error: "Image upload now requires a connected eBay account (OAuth). Go to Settings and click 'Connect eBay'." });
+  }
 
   const { base64, filename, mimeType } = req.body;
   if (!base64) {
@@ -206,60 +238,57 @@ app.post('/api/ebay/upload-image', requireRole('admin', 'publisher'), async (req
     return res.json({ success: false, error: 'No image data received (base64 missing)' });
   }
   const imageBuffer = Buffer.from(base64, 'base64');
-  const boundary = 'MIME_boundary_' + Date.now();
-  console.log(`[upload-image] start user=${req.session.userId} file=${JSON.stringify(filename)} mime=${mimeType} bytes=${imageBuffer.length} tokenType=${req.userConfig.ebayOAuthToken ? 'oauth' : 'manual'}`);
+  const sniffed = sniffImageType(imageBuffer);
+  const mime = (sniffed && sniffed.mime) || mimeType || 'image/jpeg';
+  const baseName = String(filename || 'image').replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 60) || 'image';
+  const safeName = `${baseName}.${(sniffed && sniffed.ext) || 'jpg'}`;
+  console.log(`[upload-image] start (Media API) user=${req.session.userId} file=${JSON.stringify(filename)} -> ${safeName} declaredMime=${mimeType} detectedMime=${sniffed ? sniffed.mime : 'unknown'} bytes=${imageBuffer.length}`);
 
-  const xmlPayload = [
-    '<?xml version="1.0" encoding="utf-8"?>',
-    '<UploadSiteHostedPicturesRequest xmlns="urn:ebay:apis:eBLBaseComponents">',
-    `  <PictureName>${escapeXml(filename || 'image')}</PictureName>`,
-    '  <PictureSet>Supersize</PictureSet>',
-    '</UploadSiteHostedPicturesRequest>',
-  ].join('\n');
-
-  const mime = mimeType || 'image/jpeg';
-  const parts = [
-    `--${boundary}\r\n`,
-    `Content-Disposition: form-data; name="XML Payload"\r\n`,
-    `Content-Type: text/xml\r\n\r\n`,
-    xmlPayload,
-    `\r\n--${boundary}\r\n`,
-    `Content-Disposition: form-data; name="image"; filename="${filename || 'image.jpg'}"\r\n`,
-    `Content-Type: ${mime}\r\n`,
-    `Content-Transfer-Encoding: binary\r\n\r\n`,
-  ];
-
-  const textBefore = Buffer.from(parts.join(''), 'utf-8');
-  const textAfter = Buffer.from(`\r\n--${boundary}--\r\n`, 'utf-8');
-  const body = Buffer.concat([textBefore, imageBuffer, textAfter]);
+  const fail = (httpStatus, text, fallbackMsg) => {
+    const errs = parseEbayRestErrors(text);
+    console.error(`[upload-image] FAILED user=${req.session.userId} file=${safeName} http=${httpStatus} errors=${JSON.stringify(errs)}`);
+    console.error(`[upload-image] FAILED raw eBay response: ${clip(text)}`);
+    const msg = errs.map(e => (e.long || e.short) + (e.code ? ` (code ${e.code})` : '')).filter(Boolean).join(' | ');
+    return res.json({
+      success: false,
+      error: msg || `${fallbackMsg} (eBay HTTP ${httpStatus})`,
+      debug: { httpStatus, ack: null, errors: errs, raw: clip(text, 800) },
+    });
+  };
 
   try {
-    const response = await fetch(EBAY_API_URL, {
+    // 1) Upload the file
+    const form = new FormData();
+    form.append('image', new Blob([imageBuffer], { type: mime }), safeName);
+    const createResp = await fetch(`${EBAY_MEDIA_API}/image/create_image_from_file`, {
       method: 'POST',
-      headers: {
-        ...ebayHeaders('UploadSiteHostedPictures', token),
-        'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      },
-      body,
+      headers: { 'Authorization': `Bearer ${oauthToken}` }, // fetch sets the multipart Content-Type + boundary
+      body: form,
     });
-    const text = await response.text();
-    const urlMatch = text.match(/<FullURL>([^<]+)<\/FullURL>/);
-    const ackMatch = text.match(/<Ack>([^<]+)<\/Ack>/);
-    const ebayErrors = parseEbayErrors(text);
+    const createText = await createResp.text();
+    const location = createResp.headers.get('location') || '';
+    console.log(`[upload-image] createImageFromFile http=${createResp.status} location=${location || 'none'}`);
+    if (createResp.status !== 201 || !location) return fail(createResp.status, createText, 'Image upload failed');
 
-    if (urlMatch && ackMatch && (ackMatch[1] === 'Success' || ackMatch[1] === 'Warning')) {
-      console.log(`[upload-image] ok user=${req.session.userId} http=${response.status} ack=${ackMatch[1]} url=${urlMatch[1]}${ebayErrors.length ? ' warnings=' + JSON.stringify(ebayErrors) : ''}`);
-      res.json({ success: true, url: urlMatch[1] });
-    } else {
-      console.error(`[upload-image] FAILED user=${req.session.userId} file=${JSON.stringify(filename)} mime=${mimeType} bytes=${imageBuffer.length} http=${response.status} ack=${ackMatch ? ackMatch[1] : 'none'} contentType=${response.headers.get('content-type')} errors=${JSON.stringify(ebayErrors)}`);
-      console.error(`[upload-image] FAILED raw eBay response: ${clip(text)}`);
-      const msg = ebayErrors.map(e => (e.long || e.short) + (e.code ? ` (code ${e.code})` : '')).filter(Boolean).join(' | ');
-      res.json({
-        success: false,
-        error: msg || `Upload failed (eBay HTTP ${response.status}, Ack: ${ackMatch ? ackMatch[1] : 'none'})`,
-        debug: { httpStatus: response.status, ack: ackMatch ? ackMatch[1] : null, errors: ebayErrors, raw: clip(text, 800) },
+    // 2) Resolve the image id to its EPS URL (retry briefly in case processing lags)
+    const imageId = location.split('?')[0].replace(/\/+$/, '').split('/').pop();
+    let imageUrl = '';
+    let lastResp = null, lastText = '';
+    for (let attempt = 1; attempt <= 3 && !imageUrl; attempt++) {
+      lastResp = await fetch(`${EBAY_MEDIA_API}/image/${encodeURIComponent(imageId)}`, {
+        headers: { 'Authorization': `Bearer ${oauthToken}` },
       });
+      lastText = await lastResp.text();
+      if (lastResp.ok) {
+        try { imageUrl = JSON.parse(lastText).imageUrl || ''; } catch { /* handled below */ }
+      }
+      console.log(`[upload-image] getImage attempt=${attempt} http=${lastResp.status} imageUrl=${imageUrl || 'none'}`);
+      if (!imageUrl && attempt < 3) await new Promise(r => setTimeout(r, 600));
     }
+    if (!imageUrl) return fail(lastResp.status, lastText, 'Image uploaded but eBay did not return a picture URL');
+
+    console.log(`[upload-image] ok user=${req.session.userId} imageId=${imageId} url=${imageUrl}`);
+    res.json({ success: true, url: imageUrl });
   } catch (err) {
     console.error(`[upload-image] EXCEPTION user=${req.session.userId} file=${JSON.stringify(filename)}:`, err);
     res.json({ success: false, error: err.message, debug: { exception: String(err && err.stack || err) } });

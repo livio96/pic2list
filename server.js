@@ -51,6 +51,16 @@ app.use(session({
   },
 }));
 
+// ── API request logger (Render has no request logs for this service) ──
+app.use('/api', (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const level = res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'log';
+    console[level](`[api] ${req.method} ${req.originalUrl.split('?')[0]} -> ${res.statusCode} ${Date.now() - start}ms user=${(req.session && req.session.userId) || '-'} role=${(req.session && req.session.role) || '-'}`);
+  });
+  next();
+});
+
 // ── Public routes (no auth) ──
 app.use('/api/auth', authRoutes);
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
@@ -100,6 +110,29 @@ function escapeXml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+// ── Debug helpers for eBay Trading API responses ──
+function clip(str, n = 1500) {
+  const s = String(str == null ? '' : str);
+  return s.length > n ? s.slice(0, n) + `…[+${s.length - n} chars]` : s;
+}
+
+// Pull every <Errors> block (errors AND warnings) out of a Trading API XML response
+function parseEbayErrors(xml) {
+  const out = [];
+  const re = /<Errors>([\s\S]*?)<\/Errors>/g;
+  let m;
+  while ((m = re.exec(xml)) !== null) {
+    const pick = (tag) => (m[1].match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`)) || [])[1] || '';
+    out.push({
+      code: pick('ErrorCode'),
+      severity: pick('SeverityCode'),
+      short: pick('ShortMessage'),
+      long: pick('LongMessage'),
+    });
+  }
+  return out;
 }
 
 // ── eBay OAuth token cache (per user) ──
@@ -168,8 +201,13 @@ app.post('/api/ebay/upload-image', requireRole('admin', 'publisher'), async (req
   if (!token) return res.json({ success: false, error: 'eBay token not configured. Go to Settings.' });
 
   const { base64, filename, mimeType } = req.body;
+  if (!base64) {
+    console.error(`[upload-image] user=${req.session.userId} missing base64 (filename=${filename} mime=${mimeType})`);
+    return res.json({ success: false, error: 'No image data received (base64 missing)' });
+  }
   const imageBuffer = Buffer.from(base64, 'base64');
   const boundary = 'MIME_boundary_' + Date.now();
+  console.log(`[upload-image] start user=${req.session.userId} file=${JSON.stringify(filename)} mime=${mimeType} bytes=${imageBuffer.length} tokenType=${req.userConfig.ebayOAuthToken ? 'oauth' : 'manual'}`);
 
   const xmlPayload = [
     '<?xml version="1.0" encoding="utf-8"?>',
@@ -207,15 +245,24 @@ app.post('/api/ebay/upload-image', requireRole('admin', 'publisher'), async (req
     const text = await response.text();
     const urlMatch = text.match(/<FullURL>([^<]+)<\/FullURL>/);
     const ackMatch = text.match(/<Ack>([^<]+)<\/Ack>/);
+    const ebayErrors = parseEbayErrors(text);
 
     if (urlMatch && ackMatch && (ackMatch[1] === 'Success' || ackMatch[1] === 'Warning')) {
+      console.log(`[upload-image] ok user=${req.session.userId} http=${response.status} ack=${ackMatch[1]} url=${urlMatch[1]}${ebayErrors.length ? ' warnings=' + JSON.stringify(ebayErrors) : ''}`);
       res.json({ success: true, url: urlMatch[1] });
     } else {
-      const errMsg = text.match(/<LongMessage>([^<]+)<\/LongMessage>/);
-      res.json({ success: false, error: errMsg ? errMsg[1] : 'Upload failed' });
+      console.error(`[upload-image] FAILED user=${req.session.userId} file=${JSON.stringify(filename)} mime=${mimeType} bytes=${imageBuffer.length} http=${response.status} ack=${ackMatch ? ackMatch[1] : 'none'} contentType=${response.headers.get('content-type')} errors=${JSON.stringify(ebayErrors)}`);
+      console.error(`[upload-image] FAILED raw eBay response: ${clip(text)}`);
+      const msg = ebayErrors.map(e => (e.long || e.short) + (e.code ? ` (code ${e.code})` : '')).filter(Boolean).join(' | ');
+      res.json({
+        success: false,
+        error: msg || `Upload failed (eBay HTTP ${response.status}, Ack: ${ackMatch ? ackMatch[1] : 'none'})`,
+        debug: { httpStatus: response.status, ack: ackMatch ? ackMatch[1] : null, errors: ebayErrors, raw: clip(text, 800) },
+      });
     }
   } catch (err) {
-    res.json({ success: false, error: err.message });
+    console.error(`[upload-image] EXCEPTION user=${req.session.userId} file=${JSON.stringify(filename)}:`, err);
+    res.json({ success: false, error: err.message, debug: { exception: String(err && err.stack || err) } });
   }
 });
 
@@ -315,6 +362,18 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     bestOfferEnabled, autoAcceptPrice, minBestOfferPrice, autoPay,
   } = req.body;
 
+  console.log(`[add-item] start user=${req.session.userId} account=${req.session.accountId} tokenType=${req.userConfig.ebayOAuthToken ? 'oauth' : 'manual'} ` + JSON.stringify({
+    title, titleLen: title ? title.length : 0, price, categoryId, conditionId, quantity, sku, upc,
+    pictures: Array.isArray(pictureUrls) ? pictureUrls.length : pictureUrls,
+    descriptionLen: description ? description.length : 0,
+    specifics: itemSpecifics ? Object.keys(itemSpecifics).length : 0,
+    shippingPolicyId, returnPolicyId, paymentPolicyId, bestOfferEnabled, autoAcceptPrice, minBestOfferPrice, autoPay,
+  }));
+  if (!Array.isArray(pictureUrls) || pictureUrls.length === 0 || !title) {
+    console.error(`[add-item] bad request: title=${!!title} pictureUrls=${JSON.stringify(pictureUrls)}`);
+    return res.json({ success: false, error: !title ? 'Missing title' : 'No picture URLs were provided' });
+  }
+
   // Validate category via Trading API GetCategories (checks leaf + expired remapping)
   let validCategoryId = categoryId;
   try {
@@ -337,6 +396,7 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     const catText = await catResp.text();
     const leafMatch = catText.match(/<LeafCategory>([^<]+)<\/LeafCategory>/);
     const expiredMatch = catText.match(/<Expired>true<\/Expired>/);
+    console.log(`[add-item] category check id=${categoryId} http=${catResp.status} leaf=${leafMatch ? leafMatch[1] : 'unknown'} expired=${!!expiredMatch}${catResp.ok ? '' : ' raw=' + clip(catText, 500)}`);
 
     if (expiredMatch) {
       // Category is expired — try to find the replacement
@@ -344,13 +404,15 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
       // GetCategories may return the parent or mapped category
       const newCatId = catIdMatches.length > 1 ? catIdMatches[catIdMatches.length - 1][1] : null;
       if (newCatId && newCatId !== categoryId) {
+        console.warn(`[add-item] category ${categoryId} expired, remapped to ${newCatId}`);
         validCategoryId = newCatId;
       }
     }
     if (leafMatch && leafMatch[1] === 'false' && !expiredMatch) {
+      console.error(`[add-item] category ${categoryId} is not a leaf category`);
       return res.json({ success: false, error: `Category ${categoryId} is not a leaf category. Please choose a more specific sub-category.` });
     }
-  } catch (e) { /* proceed if validation fails */ }
+  } catch (e) { console.error('[add-item] category validation threw (continuing):', e); }
 
   const pictureUrlsXml = pictureUrls.map(u => `      <PictureURL>${escapeXml(u)}</PictureURL>`).join('\n');
 
@@ -468,6 +530,8 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
     const ackMatch = text.match(/<Ack>([^<]+)<\/Ack>/);
     const itemIdMatch = text.match(/<ItemID>([^<]+)<\/ItemID>/);
     const feesBlock = text.match(/<Fees>([\s\S]*?)<\/Fees>/);
+    const ebayErrors = parseEbayErrors(text);
+    console.log(`[add-item] eBay responded user=${req.session.userId} http=${response.status} ack=${ackMatch ? ackMatch[1] : 'none'} itemId=${itemIdMatch ? itemIdMatch[1] : 'none'} errors/warnings=${JSON.stringify(ebayErrors)}`);
 
     let totalFees = '';
     if (feesBlock) {
@@ -516,13 +580,17 @@ app.post('/api/ebay/add-item', requireRole('admin', 'publisher'), async (req, re
       const errRegex = /<LongMessage>([^<]+)<\/LongMessage>/g;
       let em;
       while ((em = errRegex.exec(text)) !== null) allErrors.push(em[1]);
+      console.error(`[add-item] FAILED user=${req.session.userId} title=${JSON.stringify(title)} category=${validCategoryId} http=${response.status} ack=${ackMatch ? ackMatch[1] : 'none'}`);
+      console.error(`[add-item] FAILED raw eBay response: ${clip(text, 3000)}`);
       res.json({
         success: false,
-        error: allErrors.length > 0 ? allErrors.join(' | ') : 'Listing failed',
+        error: allErrors.length > 0 ? allErrors.join(' | ') : `Listing failed (eBay HTTP ${response.status}, Ack: ${ackMatch ? ackMatch[1] : 'none'})`,
+        debug: { httpStatus: response.status, ack: ackMatch ? ackMatch[1] : null, errors: ebayErrors, raw: clip(text, 800) },
       });
     }
   } catch (err) {
-    res.json({ success: false, error: err.message });
+    console.error(`[add-item] EXCEPTION user=${req.session.userId} title=${JSON.stringify(title)}:`, err);
+    res.json({ success: false, error: err.message, debug: { exception: String(err && err.stack || err) } });
   }
 });
 

@@ -1306,6 +1306,11 @@
 
   <script src="gen-images.js"></script>
   <script>
+    // Global debug hooks: surface any uncaught error / rejected promise in the console
+    window.addEventListener('error', (e) => console.error('[window.onerror]', e.message, `${e.filename}:${e.lineno}:${e.colno}`, e.error));
+    window.addEventListener('unhandledrejection', (e) => console.error('[unhandledrejection]', e.reason));
+    console.log('[LazyListings] debug logging enabled — filter console by "[listOnEbay" to follow a listing attempt');
+
     // Auth check — redirect to login if not authenticated
     (async () => {
       try {
@@ -1417,7 +1422,14 @@
 
     // Wrap fetch to handle 401 → redirect
     async function apiFetch(url, options = {}) {
-      const resp = await fetch(url, options);
+      let resp;
+      try {
+        resp = await fetch(url, options);
+      } catch (netErr) {
+        console.error(`[apiFetch] network error ${options.method || 'GET'} ${url}`, netErr);
+        throw netErr;
+      }
+      if (!resp.ok) console.warn(`[apiFetch] ${options.method || 'GET'} ${url} -> HTTP ${resp.status} ${resp.statusText}`);
       if (resp.status === 401) {
         window.location.href = '/login.html';
         throw new Error('Session expired');
@@ -2363,6 +2375,7 @@
 
       const listBtn = document.getElementById(`listBtn-${ci}`);
       if (listBtn) listBtn.addEventListener('click', () => {
+        console.log(`[listBtn] row ${ci} "List on eBay" clicked`, { ebayConnected: window._ebayConnected });
         if (!window._ebayConnected) { window.location.href = '/api/ebay/oauth/initiate'; return; }
         listOnEbay(ci);
       });
@@ -2645,6 +2658,7 @@
     });
 
     listAllBtn.addEventListener('click', async () => {
+      console.log('[listAll] "List All on eBay" clicked', { ebayConnected: window._ebayConnected, products: clusterData.length });
       if (!window._ebayConnected) { window.location.href = '/api/ebay/oauth/initiate'; return; }
       listAllBtn.disabled = true;
       listAllBtn.textContent = 'Publishing...';
@@ -3322,6 +3336,7 @@ HTML:
       // List on eBay from modal
       const modalListBtn = document.getElementById('modalListBtn');
       if (modalListBtn) modalListBtn.addEventListener('click', async () => {
+        console.log(`[modalListBtn] row ${ci} modal "List on eBay" clicked`, { ebayConnected: window._ebayConnected });
         if (!window._ebayConnected) { window.location.href = '/api/ebay/oauth/initiate'; return; }
         saveModalFields(ci);
         closeModal();
@@ -3992,8 +4007,26 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
       return sellerPolicies;
     }
 
+    // Debug logger for the eBay listing flow — filter the browser console by "[listOnEbay"
+    function lgDebug(runId, ...args) { console.log(`[listOnEbay ${runId}]`, ...args); }
+    function lgError(runId, ...args) { console.error(`[listOnEbay ${runId}]`, ...args); }
+    // Turn a server response's debug block into a readable alert suffix
+    function ebayDebugSuffix(data) {
+      if (!data || !data.debug) return '';
+      const d = data.debug;
+      const parts = [];
+      if (d.httpStatus) parts.push(`eBay HTTP ${d.httpStatus}`);
+      if (d.ack) parts.push(`Ack ${d.ack}`);
+      if (d.errors && d.errors.length) parts.push(d.errors.map(e => `[${e.code}] ${e.long || e.short}`).join('; '));
+      if (d.exception) parts.push(d.exception.split('\n')[0]);
+      return parts.length ? `\n\nDetails: ${parts.join(' | ')}\n(full details in the browser console)` : '';
+    }
+
     async function listOnEbay(ci) {
       const meta = clusterData[ci];
+      const runId = Date.now().toString(36);
+      const t0 = performance.now();
+      lgDebug(runId, '▶ List on eBay clicked', { ci, ebayConnected: window._ebayConnected, role: window._userRole, status: meta && meta.status });
 
       const price = document.getElementById(`price-${ci}`).value;
       const conditionId = document.getElementById(`condition-${ci}`).value;
@@ -4015,11 +4048,20 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
       const returnPolicyId = meta._returnPolicyId || (policies.returnPolicies?.find(r => r.default)?.id || policies.returnPolicies?.[0]?.id || '');
       const paymentPolicyId = policies.payment || '';
 
+      lgDebug(runId, 'form values', {
+        title: meta.generatedTitle, titleLength: (meta.generatedTitle || '').length, price, conditionId, categoryId, quantity, sku, upc,
+        images: meta.cluster.length, descriptionLength: (meta.generatedHtml || '').length,
+        specifics: itemSpecifics, shippingPolicyId, returnPolicyId, paymentPolicyId,
+        bestOffer: meta._bestOfferEnabled, autoAccept: meta._autoAcceptPrice, minOffer: meta._minBestOfferPrice, autoPay: meta._autoPay,
+      });
+
       if (!price || parseFloat(price) <= 0) {
+        lgError(runId, 'blocked: missing/invalid price', price);
         alert(`Please enter a price for "${meta.generatedTitle || meta.productName}"`);
         return;
       }
       if (!categoryId || !/^\d+$/.test(categoryId)) {
+        lgError(runId, 'blocked: missing/invalid category ID', categoryId);
         alert(`Please enter a valid category ID. Open Details for "${meta.generatedTitle || meta.productName}"`);
         return;
       }
@@ -4044,34 +4086,50 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
         meta._listingProgress = `Uploading image ${i + 1}/${total}`;
         const item = meta.cluster[i];
 
+        let uploadData = null;
         try {
           const b64 = await ensureBase64(item.img);
+          const fileName = item.img.file && item.img.file.name;
+          const fileType = item.img.file && item.img.file.type;
+          lgDebug(runId, `image ${i + 1}/${total}: uploading`, {
+            fileName, fileType, fileSize: item.img.file && item.img.file.size,
+            hasBase64: !!b64, base64Length: b64 ? b64.length : 0, base64Head: b64 ? b64.slice(0, 30) : null,
+            approxBytes: b64 ? Math.round(b64.length * 0.75) : 0, imageId: item.img._imageId,
+          });
+          if (!b64) throw new Error('No image data available for this photo (base64 is empty)');
+          const tImg = performance.now();
           const resp = await apiFetch('/api/ebay/upload-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               base64: b64,
-              filename: item.img.file.name,
-              mimeType: item.img.file.type
+              filename: fileName,
+              mimeType: fileType
             })
           });
           const data = await resp.json();
+          uploadData = data;
+          lgDebug(runId, `image ${i + 1}/${total}: server replied`, { httpStatus: resp.status, ms: Math.round(performance.now() - tImg), data });
           if (data.success) {
             pictureUrls.push(data.url);
           } else {
-            throw new Error(data.error || 'Image upload failed');
+            throw new Error((data.error || 'Image upload failed') + ebayDebugSuffix(data));
           }
         } catch (err) {
+          lgError(runId, `✖ image ${i + 1}/${total} upload failed`, err, { serverDebug: uploadData && uploadData.debug });
           meta.status = 'ready';
           updateRow(ci);
           alert(`Image upload error: ${err.message}`);
           return;
         }
       }
+      lgDebug(runId, `all ${total} images uploaded`, pictureUrls);
 
       // Step 2: Create listing
       meta._listingProgress = 'Creating listing...';
+      lgDebug(runId, 'creating listing via /api/ebay/add-item');
 
+      let addData = null;
       try {
         const resp = await apiFetch('/api/ebay/add-item', {
           method: 'POST',
@@ -4097,15 +4155,19 @@ Respond with ONLY a valid JSON object mapping field names to values (strings for
           })
         });
         const data = await resp.json();
+        addData = data;
+        lgDebug(runId, 'add-item server replied', { httpStatus: resp.status, data });
         if (data.success) {
           meta.ebayItemId = data.itemId;
           meta.status = 'listed';
+          lgDebug(runId, `✔ listed as item ${data.itemId} in ${Math.round(performance.now() - t0)}ms`);
           loadRecentListings();
           loadListingMeter();
         } else {
-          throw new Error(data.error || 'Listing failed');
+          throw new Error((data.error || 'Listing failed') + ebayDebugSuffix(data));
         }
       } catch (err) {
+        lgError(runId, '✖ listing failed', err, { serverDebug: addData && addData.debug });
         meta.status = 'ready';
         alert(`Listing error: ${err.message}`);
       }
